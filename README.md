@@ -34,29 +34,31 @@ flowchart LR
     subgraph INGRESS ["Enterprise Event Streams"]
         JIRA["Jira / Linear\n(Issue State & Sprints)"]
         GH["GitHub / GitLab\n(PRs/MRs, Commits, CI)"]
-        SLACK["Slack API\n(Decisions & Threads)"]
+        SLACK["Slack API\n(Decisions & Alerts)"]
         NOTION["Notion / Docs\n(Specs & Postmortems)"]
         DIAG["Architecture Diagrams\n(PNG / JPEG / PDF)"]
     end
 
     subgraph ENGINE ["Kairo Temporal Intelligence Core"]
-        GW["Webhook Gateway & HMAC Verifier"]
-        QUEUE["Celery + Upstash Redis Queue"]
+        GW["Webhook Gateway & Cryptographic Verifiers\n(GitHub, Jira, Linear, GitLab)"]
+        QUEUE["Celery + Redis Distributed Queue\n(Queues: ingest, embeddings, alerts, diagram)"]
         CV["Multimodal CV Engine\n(OpenCV + PaddleOCR + Docling)"]
-        DUAL_DB["Dual-Store Backbone\n• Supabase Postgres + pgvector\n• Neo4j AuraDB Temporal Graph"]
-        RECON["Work Reconstruction & Anomaly Engine\n(Rules HW-01 to HW-05)"]
-        SYNTH["Evidence-Grounded LLM Synthesizer\n(Gemini 1.5 Pro / Claude 3.5 Sonnet)"]
+        EMBED["Semantic 768-dim Vector Engine\n(OpenAI / Gemini / Local Concept-Space)"]
+        DUAL_DB["Dual-Store Backbone\n• Supabase PostgreSQL (Relational Identity, RLS, events_raw, pgvector)\n• Neo4j AuraDB Temporal Provenance Graph"]
+        RECON["Work Reconstruction & Anomaly Engine\n(Deterministic Rules HW-01 to HW-05 incl. HW-04 Drift)"]
+        SYNTH["Evidence-Grounded LLM Synthesizer\n(Groq LPU / Gemini 1.5 Pro / OpenAI / Offline Fallback)"]
     end
 
-    subgraph PRESENTATION ["Interactive Interface"]
-        DASH["Next.js 14 Executive Dashboard"]
+    subgraph PRESENTATION ["Interactive Interface Tier"]
+        DASH["Next.js 14 Executive Portal"]
+        HUD["Tauri 2.0 Rust/React Desktop HUD\n(Screen Overlay & Local Git Watcher)"]
         CITE["Cryptographic Citation Inspector"]
-        QA["Interactive Context Q&A Engine"]
+        QA["Interactive Context Q&A Engine (KIAN)"]
     end
 
     JIRA & GH & SLACK & NOTION & DIAG --> GW
-    GW --> QUEUE --> CV & DUAL_DB
-    DUAL_DB --> RECON --> SYNTH --> DASH & CITE & QA
+    GW --> QUEUE --> CV & EMBED & DUAL_DB
+    DUAL_DB --> RECON --> SYNTH --> DASH & HUD & CITE & QA
 ```
 
 ---
@@ -67,15 +69,17 @@ Kairo is built upon modern, high-throughput, and production-tested 2026 cloud-na
 
 | Layer | Technology | Version | Architectural Rationale |
 | :--- | :--- | :--- | :--- |
-| **Frontend Framework** | **Next.js (App Router)** | `14.2+` / `15.x` | Server-Side Rendering (SSR), React Server Components (RSC), and edge-ready API routes for optimal latency. |
+| **Web Portal** | **Next.js (App Router)** | `14.2+` / `15.x` | Server-Side Rendering (SSR), React Server Components (RSC), and edge-ready API routes for company admin and onboarding. |
+| **Desktop Client** | **Tauri 2.0 (Rust + React)**| `2.0+` | Ultra-lightweight native floating screen overlay HUD with background local Git repository watcher daemon. |
 | **UI Design System** | **Tailwind CSS + shadcn/ui** | `3.4+` | Accessible (Radix UI), responsive, enterprise dark-mode ready, zero runtime overhead. |
-| **Backend API Gateway** | **FastAPI** | `0.111+` | High-performance asynchronous ASGI framework with native OpenAPI 3.1 generation and Pydantic v2 validation. |
-| **Package & Build Tool** | **Turborepo + pnpm / uv** | `2.0+` / `0.2+` | Sub-second builds, workspace dependency caching, and instant Python virtualenv resolution. |
-| **Background Task Queue**| **Celery + Upstash Redis** | `5.4+` | Decoupled asynchronous worker model with serverless Redis backing; non-blocking webhook ingestion (< 20ms). |
-| **Relational & Vector DB**| **Supabase PostgreSQL** | `16+` (`pgvector 0.7+`)| ACID compliance, Row-Level Security (RLS) multi-tenant isolation, and dense 768-dim vector embeddings. |
+| **Backend API Gateway** | **FastAPI** | `0.111+` | High-performance asynchronous ASGI framework with native OpenAPI 3.1 generation and strict Pydantic v2 validation. |
+| **Distributed Rate Limiter**| **Redis Sorted Sets** | `7.x` | Shared sliding-window rate limiting across horizontally scaled API gateway replicas. |
+| **Background Task Queue**| **Celery + Redis** | `5.4+` | Decoupled asynchronous worker model with Redis broker & result backend; dedicated queues (`ingest`, `embeddings`, `alerts`, `diagram`). |
+| **Relational & Vector DB**| **Supabase PostgreSQL** | `16+` (`pgvector 0.7+`)| ACID compliance, multi-tenant Row-Level Security (RLS), relational enterprise identity, idempotent `events_raw` log, and dense 768-dim vectors. |
 | **Knowledge Graph** | **Neo4j AuraDB** | `5.20+` | Native labeled property graph with Cypher queries for temporal validity slicing and 2-hop dependency traversal. |
-| **Computer Vision / OCR** | **OpenCV + PaddleOCR + Docling**| Latest | Deep spatial analysis and directional arrow tracking to convert architecture diagram images into structured graph nodes. |
-| **Reasoning LLM** | **Google Gemini / Anthropic Claude**| Latest | Grounded synthesis ($T=0.1$) with structured output JSON constraints and mandatory citation enforcement. |
+| **Semantic Embeddings** | **OpenAI / Gemini / Concept Space**| 768-dim | Cloud API embedding models (`text-embedding-3-small`, `text-embedding-004`) with deterministic 768-dim concept-space projection fallback. |
+| **Computer Vision / OCR** | **OpenCV + PaddleOCR + Docling**| Latest | Spatial analysis and directional arrow tracking converting architecture diagram images into structured graph nodes. |
+| **Reasoning LLM** | **Groq / Google Gemini / OpenAI**| Latest | High-speed LPU / multimodal inference ($T=0.1$) with structured output constraints, mandatory inline citation enforcement, and offline fallback. |
 
 ---
 
@@ -86,32 +90,34 @@ The system operates as an **Event-Driven Modular Monolith** coupled with an asyn
 ```mermaid
 flowchart TD
     subgraph CLIENT_TIER ["Client & Delivery Tier"]
-        WEB["Next.js 14 Interactive Web App"]
-        EXT["Kairo In-Situ Chrome Extension"]
+        WEB["Next.js 14 Interactive Web App\n(Company Admin & Onboarding)"]
+        HUD["Tauri 2.0 Native Desktop HUD\n(Floating Pill & Local Git Watcher)"]
         SLACK_BOT["Slack App Alerts & Handoff Digests"]
     end
 
     subgraph API_TIER ["FastAPI Ingress Layer"]
         AUTH["Supabase JWT & RBAC Middleware"]
-        HMAC["HMAC-SHA256 Webhook Verifier"]
+        RATE["Distributed Redis Sliding-Window Rate Limiter"]
+        HMAC["Cryptographic Webhook Verifiers\n(GitHub, Jira, Linear, GitLab)"]
         REST["REST API Controllers (/api/v1)"]
     end
 
     subgraph ASYNC_TIER ["Distributed Execution Backbone"]
-        REDIS["Upstash Redis Broker (DLQ + Idempotency Cache)"]
-        WORKER["Celery Workers (Ingest, CV, Recon, Synth)"]
+        REDIS["Redis Broker & Result Backend\n(Connection-Pooled Singleton)"]
+        WORKER["Celery Workers\n(Queues: ingest, embeddings, alerts, diagram)"]
     end
 
     subgraph STORAGE_TIER ["Enterprise Data Stores"]
-        POSTGRES[("Supabase PostgreSQL 16\n• work_items & organizations\n• document_chunks (pgvector)\n• audit_logs & handoff_packages")]
+        POSTGRES[("Supabase PostgreSQL 16\n• organizations, users, teams (Relational Identity)\n• events_raw (Idempotent Delivery Log)\n• document_chunks (768-dim pgvector)\n• audit_logs & handoff_packages")]
         GRAPH[("Neo4j AuraDB 5+\n• (User)-[WORKED_ON]->(Task)\n• (Task)-[IMPLEMENTED_BY]->(PR)\n• (Decision)-[SUPERSEDES]->(Decision)")]
     end
 
     CLIENT_TIER --> AUTH --> REST
     HMAC --> REST
+    AUTH --> RATE
     REST --> REDIS --> WORKER
     WORKER --> STORAGE_TIER
-    WORKER --> LLM["Reasoning LLM Engine"]
+    WORKER --> LLM["Reasoning LLM Engine\n(Groq LPU / Gemini / OpenAI / Offline Fallback)"]
     LLM --> STORAGE_TIER
 ```
 
