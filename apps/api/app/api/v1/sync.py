@@ -1,8 +1,9 @@
 from pathlib import Path
 
-from apps.api.app.services.cold_start import ColdStartIngestionService
 from fastapi import APIRouter, status
 from pydantic import BaseModel
+
+from apps.api.app.services.cold_start import ColdStartIngestionService
 
 router = APIRouter(prefix="/sync", tags=["Historical Sync"])
 

@@ -1,9 +1,9 @@
 import pytest
+from fastapi.testclient import TestClient
+
 from apps.api.app.core.security import create_access_token
 from apps.api.app.main import app
 from apps.api.app.services.identity_service import IdentityService
-from fastapi.testclient import TestClient
-from packages.schemas.identity import ExternalProvider, UserRole
 
 client = TestClient(app)
 

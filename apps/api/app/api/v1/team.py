@@ -1,6 +1,10 @@
 import uuid
 from typing import Annotated, Any, Literal, cast
 
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
+from supabase import Client
+
 from apps.api.app.core.database import get_db
 from apps.api.app.core.security import get_current_user
 from apps.api.app.engines.team_continuity import (
@@ -9,10 +13,7 @@ from apps.api.app.engines.team_continuity import (
     TeamContinuityEngine,
 )
 from apps.api.app.services.acl import PreRetrievalACL
-from fastapi import APIRouter, Depends, HTTPException, Query, status
 from packages.schemas.permissions import UserPermissionProfile
-from pydantic import BaseModel
-from supabase import Client
 
 router = APIRouter(prefix="/team", tags=["Team Continuity"])
 

@@ -245,8 +245,12 @@ def test_semantic_embedding_cosine_similarity():
 
 
 def test_openai_and_gemini_embedding_providers():
-    from unittest.mock import patch, MagicMock
-    from workers.tasks.embeddings import _embed_with_openai, _embed_with_gemini, generate_768_embedding
+    from unittest.mock import MagicMock, patch
+
+    from workers.tasks.embeddings import (
+        _embed_with_gemini,
+        _embed_with_openai,
+    )
 
     fake_openai_resp = MagicMock()
     fake_openai_resp.status_code = 200

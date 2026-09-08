@@ -1,10 +1,9 @@
 from datetime import UTC, datetime, timedelta
 
+from apps.api.app.engines.anomaly_rules import AnomalyEngine
 from packages.schemas.anomaly import AnomalySeverity
 from packages.schemas.github_event import CIStatus, PRStatus, PullRequestEvent
 from packages.schemas.work_item import WorkItem, WorkItemStatus
-
-from apps.api.app.engines.anomaly_rules import AnomalyEngine
 
 
 def test_hw01_shadow_work_triggered():

@@ -1,3 +1,5 @@
+from fastapi import APIRouter
+
 from apps.api.app.api.v1 import (
     alerts,
     auth,
@@ -12,7 +14,6 @@ from apps.api.app.api.v1 import (
     team,
 )
 from apps.api.app.api.v1.webhooks import github, gitlab, jira, linear
-from fastapi import APIRouter
 
 api_v1_router = APIRouter()
 api_v1_router.include_router(auth.router)

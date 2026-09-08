@@ -1,15 +1,16 @@
 from typing import Annotated
 
 import httpx
+from fastapi import APIRouter, Depends, status
+from pydantic import BaseModel
+
 from apps.api.app.core.config import get_settings
 from apps.api.app.core.logging import get_logger
 from apps.api.app.core.security import get_current_user
 from apps.api.app.services.acl import PreRetrievalACL
 from apps.api.app.services.slack_notifier import SlackAlertFormatter
-from fastapi import APIRouter, Depends, status
 from packages.schemas.anomaly import AnomalyRuleResult
 from packages.schemas.permissions import UserPermissionProfile
-from pydantic import BaseModel
 
 logger = get_logger("kairo.alerts")
 router = APIRouter(prefix="/alerts", tags=["Alerts"])

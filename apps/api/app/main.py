@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from apps.api.app.api.v1.health import router as health_router
 from apps.api.app.api.v1.router import api_v1_router
 from apps.api.app.core.config import get_settings
 from apps.api.app.core.database import (
@@ -70,8 +71,6 @@ app.add_middleware(
 
 # Exception handlers
 app.add_exception_handler(KairoError, kairo_exception_handler)
-
-from apps.api.app.api.v1.health import router as health_router
 
 # Include v1 Router
 app.include_router(api_v1_router, prefix=settings.API_V1_STR)

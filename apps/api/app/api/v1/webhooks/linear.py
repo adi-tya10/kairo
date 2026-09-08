@@ -1,8 +1,9 @@
 import json
 from typing import Any
 
-from apps.api.app.core.security import verify_linear_signature
 from fastapi import APIRouter, Header, HTTPException, Request, status
+
+from apps.api.app.core.security import verify_linear_signature
 from workers.celery_app import celery_app
 
 router = APIRouter(prefix="/webhooks", tags=["Webhooks"])

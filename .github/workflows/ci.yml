@@ -26,11 +26,11 @@ jobs:
 
       - name: Run Ruff Linting
         run: |
-          ruff check apps/api packages workers scripts
+          ruff check --config pyproject.toml apps/api packages workers scripts
 
       - name: Run Mypy Typecheck
         run: |
-          mypy apps/api packages workers scripts --ignore-missing-imports
+          mypy apps/api packages workers scripts --ignore-missing-imports --explicit-package-bases
 
       - name: Run Backend Pytest Suite
         env:
@@ -51,10 +51,10 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up Node.js 18
+      - name: Set up Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
 
       - name: Verify Web Admin Portal
         working-directory: apps/web

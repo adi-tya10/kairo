@@ -20,7 +20,6 @@ Features:
 import argparse
 import hashlib
 import json
-import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -213,8 +212,12 @@ def run_migration(dry_run: bool = False) -> dict[str, int]:
     print(f"[*] Migrating {total_ext} external handle mappings...")
     for org_id, ext_list in raw_ext.items():
         for e in ext_list:
+            prov = e.get("provider", "")
+            ext_uid = e.get("external_user_id", "")
+            hash_src = f"{org_id}:{prov}:{ext_uid}".encode("utf-8")
+            fallback_id = f"ext_{hashlib.md5(hash_src).hexdigest()[:10]}"
             ext_record = {
-                "id": e.get("id") or f"ext_{hashlib.md5(f'{org_id}:{e.get('provider')}:{e.get('external_user_id')}'.encode()).hexdigest()[:10]}",
+                "id": e.get("id") or fallback_id,
                 "user_id": e.get("user_id"),
                 "organization_id": org_id,
                 "provider": e.get("provider"),

@@ -1,10 +1,10 @@
 from fastapi.testclient import TestClient
-from packages.schemas.anomaly import AnomalyRuleResult, AnomalySeverity, AnomalyType
-from workers.tasks.alerts import dispatch_anomaly_alert
 
 from apps.api.app.core.security import create_access_token
 from apps.api.app.main import app
 from apps.api.app.services.slack_notifier import SlackAlertFormatter
+from packages.schemas.anomaly import AnomalyRuleResult, AnomalySeverity, AnomalyType
+from workers.tasks.alerts import dispatch_anomaly_alert
 
 client = TestClient(app)
 

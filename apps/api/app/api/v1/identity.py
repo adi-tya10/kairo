@@ -1,9 +1,12 @@
 from typing import Annotated, Any
 
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
+from supabase import Client
+
 from apps.api.app.core.database import get_db
 from apps.api.app.core.security import create_access_token, get_current_user
 from apps.api.app.services.identity_service import IdentityService
-from fastapi import APIRouter, Depends, HTTPException, Query, status
 from packages.schemas.identity import (
     Device,
     DeviceEnrollRequest,
@@ -17,8 +20,6 @@ from packages.schemas.identity import (
     UserIdentityContextResponse,
 )
 from packages.schemas.permissions import UserPermissionProfile
-from pydantic import BaseModel
-from supabase import Client
 
 router = APIRouter(prefix="", tags=["Enterprise Identity & Provisioning"])
 

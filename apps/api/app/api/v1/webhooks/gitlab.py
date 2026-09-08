@@ -1,9 +1,10 @@
 import json
 from typing import Any
 
+from fastapi import APIRouter, Header, HTTPException, Request, status
+
 from apps.api.app.core.errors import SignatureVerificationError
 from apps.api.app.core.security import verify_gitlab_token
-from fastapi import APIRouter, Header, HTTPException, Request, status
 from workers.celery_app import celery_app
 
 router = APIRouter(prefix="/webhooks", tags=["Webhooks"])

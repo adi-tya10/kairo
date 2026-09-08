@@ -1,15 +1,16 @@
 import re
 from typing import Annotated, Any
 
+from fastapi import APIRouter, Depends, status
+from pydantic import BaseModel
+from supabase import Client
+
 from apps.api.app.core.database import get_db, get_graph_db
 from apps.api.app.core.security import get_current_user
 from apps.api.app.services.acl import PreRetrievalACL
 from apps.api.app.services.graph_service import GraphLineageService
 from apps.api.app.services.llm_service import LLMService
-from fastapi import APIRouter, Depends, status
 from packages.schemas.permissions import UserPermissionProfile
-from pydantic import BaseModel
-from supabase import Client
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
 

@@ -5,10 +5,10 @@ from typing import Any
 
 import jwt
 from fastapi import Header, HTTPException, status
-from packages.schemas.permissions import UserPermissionProfile
 
 from apps.api.app.core.config import get_settings
 from apps.api.app.core.errors import SignatureVerificationError
+from packages.schemas.permissions import UserPermissionProfile
 
 
 def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = None) -> str:

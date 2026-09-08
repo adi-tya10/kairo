@@ -3,7 +3,12 @@ KAIRO End-to-End Seeded Benchmark Evaluation Runner (Rahul -> Aman scenario).
 Loads fixtures/rahul_aman_transfer.json and validates all 12 Goals (G-01 to G-12).
 """
 import json
+import sys
 from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from apps.api.app.core.errors import AccessRestrictedError, TenantIsolationError
 from apps.api.app.engines.anomaly_rules import AnomalyEngine

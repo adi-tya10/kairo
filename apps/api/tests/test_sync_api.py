@@ -1,10 +1,10 @@
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
-from packages.schemas.github_event import CommitInfo
-from workers.tasks.sync import process_historical_sync
 
 from apps.api.app.main import app
+from packages.schemas.github_event import CommitInfo
+from workers.tasks.sync import process_historical_sync
 
 client = TestClient(app)
 

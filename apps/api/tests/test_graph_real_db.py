@@ -19,7 +19,7 @@ from neo4j import GraphDatabase
 
 from apps.api.app.core.config import get_settings
 from apps.api.app.core.database import get_neo4j_driver, reset_neo4j_driver
-from apps.api.app.services.graph_service import DecisionNode, GraphLineageService
+from apps.api.app.services.graph_service import GraphLineageService
 
 # Skip the entire module unless TEST_LIVE_GRAPH=true
 pytestmark = pytest.mark.skipif(

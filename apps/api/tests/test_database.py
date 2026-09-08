@@ -19,7 +19,6 @@ from apps.api.app.core.database import (
 from apps.api.app.core.logging import JSONFormatter
 from apps.api.app.main import lifespan
 
-
 # ---------------------------------------------------------------------------
 # Supabase / PostgreSQL tests
 # ---------------------------------------------------------------------------

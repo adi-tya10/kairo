@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
-from workers.tasks.diagram import process_diagram_document
 
 from apps.api.app.main import app
+from workers.tasks.diagram import process_diagram_document
 
 client = TestClient(app)
 

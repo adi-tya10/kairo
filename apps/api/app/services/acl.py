@@ -1,8 +1,7 @@
 from typing import Any
 
-from packages.schemas.permissions import UserPermissionProfile
-
 from apps.api.app.core.errors import AccessRestrictedError, TenantIsolationError
+from packages.schemas.permissions import UserPermissionProfile
 
 
 class PreRetrievalACL:

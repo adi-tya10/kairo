@@ -2,14 +2,14 @@ from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
-from packages.schemas.github_event import CommitInfo, PRStatus, PullRequestEvent
-from packages.schemas.permissions import UserPermissionProfile
 
 from apps.api.app.core.errors import AccessRestrictedError, TenantIsolationError
 from apps.api.app.core.security import create_access_token
 from apps.api.app.main import app
 from apps.api.app.services.acl import PreRetrievalACL
 from apps.api.app.services.git_sync import GitSyncService
+from packages.schemas.github_event import CommitInfo, PRStatus, PullRequestEvent
+from packages.schemas.permissions import UserPermissionProfile
 
 client = TestClient(app)
 

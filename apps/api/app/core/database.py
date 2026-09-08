@@ -7,14 +7,14 @@ fake or degraded sessions silently.
 from collections.abc import Generator
 
 import httpx
+import redis
 from neo4j import AsyncGraphDatabase, GraphDatabase
 from neo4j import Driver as Neo4jDriver
 from neo4j import Session as Neo4jSession
-import redis
+from supabase import Client, create_client
 
 from apps.api.app.core.config import get_settings
 from apps.api.app.core.logging import get_logger
-from supabase import Client, create_client
 
 logger = get_logger("kairo.core.database")
 

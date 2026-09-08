@@ -18,7 +18,9 @@ def dispatch_anomaly_alert(
 ) -> dict[str, Any]:
     """Asynchronously formats and sends alert card to webhook with bounded retries."""
     import time
+
     import httpx
+
     from apps.api.app.core.config import get_settings
     from apps.api.app.core.logging import get_logger
 

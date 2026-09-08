@@ -1,6 +1,10 @@
 import time
 from typing import Annotated, Any
 
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from pydantic import BaseModel
+from supabase import Client
+
 from apps.api.app.core.database import get_db
 from apps.api.app.core.logging import get_logger
 from apps.api.app.core.security import (
@@ -9,10 +13,7 @@ from apps.api.app.core.security import (
     hash_password,
     verify_password,
 )
-from fastapi import APIRouter, Depends, HTTPException, Request, status
 from packages.schemas.permissions import UserPermissionProfile
-from pydantic import BaseModel
-from supabase import Client
 
 logger = get_logger("kairo.api.auth")
 router = APIRouter(prefix="/auth", tags=["Authentication"])

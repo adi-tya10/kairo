@@ -1,4 +1,5 @@
 import uuid
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -54,7 +55,8 @@ def test_distributed_rate_limiter_shared_across_instances() -> None:
     via a shared Redis client, preventing distributed brute-force attacks.
     """
     from fastapi import HTTPException
-    from apps.api.app.api.v1.auth import _check_rate_limit, MAX_AUTH_ATTEMPTS
+
+    from apps.api.app.api.v1.auth import _check_rate_limit
 
     class MockRedisPipeline:
         def __init__(self, store: dict[str, list[float]]) -> None:
@@ -116,7 +118,8 @@ def test_rate_limiter_memory_fallback() -> None:
     """Verifies that the rate limiter gracefully falls back to memory if Redis is unavailable."""
     import pytest
     from fastapi import HTTPException
-    from apps.api.app.api.v1.auth import _check_rate_limit, MAX_AUTH_ATTEMPTS
+
+    from apps.api.app.api.v1.auth import MAX_AUTH_ATTEMPTS, _check_rate_limit
 
     client_id = f"test_mem_{uuid.uuid4().hex[:6]}"
     for _ in range(MAX_AUTH_ATTEMPTS):
@@ -129,8 +132,9 @@ def test_rate_limiter_memory_fallback() -> None:
 
 @pytest.mark.asyncio
 async def test_redis_health_and_client() -> None:
-    from unittest.mock import patch, MagicMock
-    from apps.api.app.core.database import check_redis_health, get_redis_client
+    from unittest.mock import MagicMock, patch
+
+    from apps.api.app.core.database import check_redis_health
 
     mock_client = MagicMock()
     mock_client.ping.return_value = True

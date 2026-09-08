@@ -1,6 +1,7 @@
-from cv_pipeline.diagram_parser import DiagramComponent, DiagramParser
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
+
+from cv_pipeline.diagram_parser import DiagramComponent, DiagramParser
 
 router = APIRouter(prefix="/diagrams", tags=["Diagrams"])
 

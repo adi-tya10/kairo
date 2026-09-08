@@ -1,5 +1,5 @@
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from apps.api.app.core.database import get_db
@@ -90,7 +90,7 @@ class IdentityService:
     @classmethod
     def create_team(cls, organization_id: str, name: str, description: str | None = None) -> Team:
         team_id = f"team_{secrets.token_hex(4)}"
-        now_iso = datetime.now(timezone.utc).isoformat()
+        now_iso = datetime.now(UTC).isoformat()
 
         # Mirror in memory
         org_teams = cls._mem_teams.setdefault(organization_id, [])
@@ -161,8 +161,8 @@ class IdentityService:
                         organization_id=organization_id,
                         name=t["name"],
                         description=t.get("description"),
-                        created_at=datetime.fromisoformat(created_val) if isinstance(created_val, str) else created_val or datetime.now(timezone.utc),
-                        updated_at=datetime.fromisoformat(updated_val) if isinstance(updated_val, str) else updated_val or datetime.now(timezone.utc),
+                        created_at=datetime.fromisoformat(created_val) if isinstance(created_val, str) else created_val or datetime.now(UTC),
+                        updated_at=datetime.fromisoformat(updated_val) if isinstance(updated_val, str) else updated_val or datetime.now(UTC),
                         member_count=m_count,
                     )
             except Exception:
@@ -184,7 +184,7 @@ class IdentityService:
             memberships.append({
                 "team_id": team_id,
                 "user_id": user_id,
-                "created_at": datetime.now(timezone.utc).isoformat(),
+                "created_at": datetime.now(UTC).isoformat(),
             })
 
     @classmethod
@@ -222,8 +222,8 @@ class IdentityService:
         db = _safe_get_db()
         token = f"kairo_inv_{secrets.token_urlsafe(24)}"
         inv_id = f"inv_{secrets.token_hex(4)}"
-        expires_at = datetime.now(timezone.utc) + timedelta(days=7)
-        now = datetime.now(timezone.utc)
+        expires_at = datetime.now(UTC) + timedelta(days=7)
+        now = datetime.now(UTC)
 
         record = {
             "id": inv_id,
@@ -397,7 +397,7 @@ class IdentityService:
     def enroll_device(cls, user_id: str, organization_id: str, device_name: str, platform: str = "windows", app_version: str = "2.0.0") -> Device:
         db = _safe_get_db()
         device_id = f"dev_{secrets.token_hex(4)}"
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         if db:
             try:
@@ -492,8 +492,8 @@ class IdentityService:
                             platform=d.get("platform", "windows"),
                             app_version=d.get("app_version", "2.0.0"),
                             status=DeviceStatus(d.get("status", "ACTIVE")),
-                            last_seen_at=datetime.fromisoformat(d["last_seen_at"]) if isinstance(d.get("last_seen_at"), str) else datetime.now(timezone.utc),
-                            created_at=datetime.fromisoformat(d["created_at"]) if isinstance(d.get("created_at"), str) else datetime.now(timezone.utc),
+                            last_seen_at=datetime.fromisoformat(d["last_seen_at"]) if isinstance(d.get("last_seen_at"), str) else datetime.now(UTC),
+                            created_at=datetime.fromisoformat(d["created_at"]) if isinstance(d.get("created_at"), str) else datetime.now(UTC),
                         )
                         for d in rows
                     ]
@@ -629,7 +629,7 @@ class IdentityService:
             "external_username": external_username,
             "external_email": external_email,
             "verification_status": "VERIFIED",
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
         }
         org_links.append(record)
 
@@ -665,7 +665,7 @@ class IdentityService:
                             external_username=r["external_username"],
                             external_email=r.get("external_email"),
                             verification_status=r.get("verification_status", "VERIFIED"),
-                            created_at=datetime.fromisoformat(r["created_at"]) if isinstance(r.get("created_at"), str) else datetime.now(timezone.utc),
+                            created_at=datetime.fromisoformat(r["created_at"]) if isinstance(r.get("created_at"), str) else datetime.now(UTC),
                         )
                         for r in rows
                     ]
@@ -850,8 +850,8 @@ class IdentityService:
         cls._auth_codes_store[code] = {
             "user_id": user_id,
             "organization_id": organization_id,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
+            "expires_at": (datetime.now(UTC) + timedelta(minutes=5)).isoformat(),
         }
         return code
 
@@ -861,6 +861,6 @@ class IdentityService:
         if not record:
             return None
         expires_at = datetime.fromisoformat(record["expires_at"])
-        if datetime.now(timezone.utc) > expires_at:
+        if datetime.now(UTC) > expires_at:
             return None
         return record

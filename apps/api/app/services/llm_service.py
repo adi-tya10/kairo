@@ -2,10 +2,6 @@ import re
 from typing import Any
 
 import httpx
-from packages.prompts.qa_v1 import (
-    GROUNDED_QA_SYSTEM_PROMPT,
-    GROUNDED_QA_USER_TEMPLATE,
-)
 
 from apps.api.app.core.config import get_settings
 from apps.api.app.core.logging import get_logger
