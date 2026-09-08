@@ -384,3 +384,31 @@ async def test_check_redis_health_failure():
         healthy = await check_redis_health()
         assert healthy is False
 
+
+def test_cors_origins_parsing():
+    """Verifies that CORS_ORIGINS parses comma-separated, JSON array, and list formats."""
+    from apps.api.app.core.config import Settings
+    import os
+
+    # Comma-separated string in env
+    orig_env = os.environ.get("CORS_ORIGINS")
+    try:
+        os.environ["CORS_ORIGINS"] = "https://app.kairo.dev, http://localhost:3000 , tauri://localhost"
+        s1 = Settings(_env_file=None)
+        assert s1.CORS_ORIGINS == ["https://app.kairo.dev", "http://localhost:3000", "tauri://localhost"]
+
+        # JSON array string in env
+        os.environ["CORS_ORIGINS"] = '["https://kairo-web.onrender.com", "http://localhost:3000"]'
+        s2 = Settings(_env_file=None)
+        assert s2.CORS_ORIGINS == ["https://kairo-web.onrender.com", "http://localhost:3000"]
+
+        # Direct list parameter
+        s3 = Settings(_env_file=None, CORS_ORIGINS=["https://custom.kairo.dev"])
+        assert s3.CORS_ORIGINS == ["https://custom.kairo.dev"]
+    finally:
+        if orig_env is not None:
+            os.environ["CORS_ORIGINS"] = orig_env
+        else:
+            os.environ.pop("CORS_ORIGINS", None)
+
+

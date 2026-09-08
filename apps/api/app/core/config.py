@@ -25,9 +25,9 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
 
     # CORS
-    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:1420", "tauri://localhost"]
+    CORS_ORIGINS: list[str] | str = ["http://localhost:3000", "http://localhost:1420", "tauri://localhost"]
 
-    @field_validator("CORS_ORIGINS", mode="before")
+    @field_validator("CORS_ORIGINS", mode="after")
     @classmethod
     def parse_cors_origins(cls, v: Any) -> list[str]:
         """Support both JSON array syntax and comma-separated string from deployment environments."""
