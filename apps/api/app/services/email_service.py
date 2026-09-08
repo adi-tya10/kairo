@@ -242,7 +242,7 @@ class EmailService:
         settings = get_settings()
         base_url = settings.WEB_APP_URL.rstrip('/')
         if settings.APP_ENV.lower() == "production" and ("localhost" in base_url or "127.0.0.1" in base_url):
-            base_url = "https://kairo-web.onrender.com"
+            base_url = "https://kairo-web-91or.onrender.com"
 
         invite_url = f"{base_url}/auth?invite={invite_token}"
         org_display = organization_id.capitalize()
