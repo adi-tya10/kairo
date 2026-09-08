@@ -36,6 +36,9 @@ def get_redis_client() -> redis.Redis:
         return _redis_client
 
     settings = get_settings()
+    if not settings.REDIS_URL:
+        raise ValueError("REDIS_URL must be configured")
+
     pool = redis.ConnectionPool.from_url(
         settings.REDIS_URL,
         max_connections=50,
@@ -65,7 +68,7 @@ async def check_redis_health(timeout: float = 5.0) -> bool:
     """
     try:
         client = get_redis_client()
-        return bool(client.ping())
+        return client.ping()
     except Exception as exc:
         logger.error(f"Redis health check failed: {exc}")
         return False

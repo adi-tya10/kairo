@@ -10,11 +10,14 @@ from apps.api.app.core.config import get_settings
 from apps.api.app.core.database import (
     check_database_health,
     check_neo4j_health,
+    check_redis_health,
     get_db,
     get_graph_db,
     get_neo4j_driver,
+    get_redis_client,
     get_supabase_client,
     reset_neo4j_driver,
+    reset_redis_client,
 )
 from apps.api.app.core.logging import JSONFormatter
 from apps.api.app.main import lifespan
@@ -324,4 +327,60 @@ def test_settings_production_validation() -> None:
 
     with pytest.raises(ValueError, match="Default GITLAB_WEBHOOK_SECRET"):
         Settings(**{**valid_prod_kwargs, "GITLAB_WEBHOOK_SECRET": "kairo_gitlab_webhook_secret_local"})
+
+
+# ---------------------------------------------------------------------------
+# Redis tests
+# ---------------------------------------------------------------------------
+
+def test_get_redis_client_unconfigured():
+    settings = get_settings()
+    reset_redis_client()
+    with patch.object(settings, "REDIS_URL", ""):
+        with pytest.raises(ValueError, match="REDIS_URL must be configured"):
+            get_redis_client()
+    reset_redis_client()
+
+
+def test_get_redis_client_and_reset():
+    settings = get_settings()
+    reset_redis_client()
+    with (
+        patch.object(settings, "REDIS_URL", "redis://localhost:6379/0"),
+        patch("redis.ConnectionPool.from_url") as mock_pool,
+        patch("redis.Redis") as mock_redis,
+    ):
+        mock_client = MagicMock()
+        mock_redis.return_value = mock_client
+
+        c1 = get_redis_client()
+        c2 = get_redis_client()
+        assert c1 is c2
+        assert mock_pool.call_count == 1
+        assert mock_redis.call_count == 1
+
+        reset_redis_client()
+        mock_client.close.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_check_redis_health_success():
+    with patch("apps.api.app.core.database.get_redis_client") as mock_get:
+        mock_client = MagicMock()
+        mock_client.ping.return_value = True
+        mock_get.return_value = mock_client
+
+        healthy = await check_redis_health()
+        assert healthy is True
+
+
+@pytest.mark.asyncio
+async def test_check_redis_health_failure():
+    with patch("apps.api.app.core.database.get_redis_client") as mock_get:
+        mock_client = MagicMock()
+        mock_client.ping.side_effect = ConnectionError("Redis down")
+        mock_get.return_value = mock_client
+
+        healthy = await check_redis_health()
+        assert healthy is False
 
