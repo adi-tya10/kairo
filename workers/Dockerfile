@@ -13,6 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY apps/api/ apps/api/
 COPY packages/ packages/
 COPY workers/ workers/
+COPY cv_pipeline/ cv_pipeline/
 
 ENV PYTHONPATH="/app"
 
