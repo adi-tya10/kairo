@@ -35,18 +35,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             logger.warning("Database is unreachable; continuing in development mode.")
 
     if not redis_healthy:
-        if settings.APP_ENV == "production":
-            logger.critical("FATAL: Redis health check failed in production! Host unreachable.")
-            raise RuntimeError("Production startup failure: Redis health check failed.")
-        else:
-            logger.warning("Redis is unreachable; distributed rate limiter running in fallback mode.")
+        logger.warning(
+            "Redis is unreachable at startup; distributed rate limiter and Celery tasks running in fallback mode."
+        )
 
     if not neo4j_healthy:
-        if settings.APP_ENV == "production":
-            logger.critical("FATAL: Neo4j AuraDB health check failed in production! Host unreachable.")
-            raise RuntimeError("Production startup failure: Neo4j health check failed.")
-        else:
-            logger.warning("Neo4j AuraDB is unreachable; continuing in development mode.")
+        logger.warning(
+            "Neo4j AuraDB is unreachable at startup; graph operations will operate in circuit-breaker mode."
+        )
 
     yield
     logger.info("Shutting down KAIRO API server.")

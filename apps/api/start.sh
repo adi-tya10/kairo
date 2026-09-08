@@ -9,6 +9,7 @@ echo "========================================================"
 # Launch Celery background worker if REDIS_URL is configured
 if [ -n "$REDIS_URL" ]; then
     echo "[+] Initializing background Celery worker (Concurrency: 1)..."
+    export C_FORCE_ROOT=1
     celery -A workers.celery_app worker --loglevel=info --concurrency=1 &
 else
     echo "[!] REDIS_URL not detected. Running without background worker."
