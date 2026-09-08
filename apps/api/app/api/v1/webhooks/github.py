@@ -27,13 +27,19 @@ async def handle_github_webhook(
     """
     Dedicated multi-tenant GitHub Webhook endpoint.
     Auto-discovers and registers incoming repositories dynamically into the organization's dashboard.
+    Enforces mandatory HMAC SHA-256 signature verification.
     """
     raw_body = await request.body()
-    if x_hub_signature_256:
-        try:
-            verify_github_signature(raw_body, x_hub_signature_256)
-        except Exception as e:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e)) from e
+    if not x_hub_signature_256:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing mandatory X-Hub-Signature-256 header.",
+        )
+
+    try:
+        verify_github_signature(raw_body, x_hub_signature_256)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e)) from e
 
     try:
         payload = json.loads(raw_body) if raw_body else {}
@@ -52,11 +58,12 @@ async def handle_github_webhook(
                 "organization_id": target_org_id,
                 "event_type": x_github_event,
                 "payload": payload,
+                "delivery_id": x_github_delivery,
             },
         )
     except (RuntimeError, ConnectionError, OSError):
         from workers.tasks.ingest import process_github_webhook
-        process_github_webhook.apply(args=[target_org_id, x_github_event, payload])
+        process_github_webhook.apply(args=[target_org_id, x_github_event, payload], kwargs={"delivery_id": x_github_delivery})
 
     return {
         "status": "accepted",

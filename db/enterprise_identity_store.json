@@ -408,6 +408,36 @@
         "status": "ACCEPTED",
         "expires_at": "2026-09-12T17:24:20.243222+00:00",
         "created_at": "2026-09-05T17:24:20.243244+00:00"
+      },
+      {
+        "id": "inv_80d00a9f",
+        "organization_id": "snapmeet",
+        "email": "priya@snapmeet.com",
+        "name": "Priya Patel",
+        "team_id": null,
+        "role": "DEVELOPER",
+        "allowed_repos": [
+          "snapmeet/billing-service"
+        ],
+        "token": "kairo_inv_di0TWugvOy2sY5Dsam4AtjdQrKdhYYeQ",
+        "status": "ACCEPTED",
+        "expires_at": "2026-09-15T12:30:08.712711+00:00",
+        "created_at": "2026-09-08T12:30:08.712740+00:00"
+      },
+      {
+        "id": "inv_283408b2",
+        "organization_id": "snapmeet",
+        "email": "priya@snapmeet.com",
+        "name": "Priya Patel",
+        "team_id": null,
+        "role": "DEVELOPER",
+        "allowed_repos": [
+          "snapmeet/billing-service"
+        ],
+        "token": "kairo_inv_WiYJ4mFRoLcG27v67uB2kEFf2Ma4hGlx",
+        "status": "ACCEPTED",
+        "expires_at": "2026-09-15T12:47:45.289082+00:00",
+        "created_at": "2026-09-08T12:47:45.289112+00:00"
       }
     ],
     "kairo": [
@@ -453,7 +483,7 @@
         "platform": "windows",
         "app_version": "2.0.0",
         "status": "REVOKED",
-        "last_seen_at": "2026-09-05T17:24:20.319179+00:00",
+        "last_seen_at": "2026-09-08T12:47:45.357705+00:00",
         "created_at": "2026-08-30T06:16:47.156892+00:00"
       },
       {

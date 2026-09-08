@@ -188,3 +188,39 @@ def test_citation_extractor_clean_normalization() -> None:
     assert "[PR #88]" in citations
     assert "[Commit 3f1a2b]" in citations
     assert "[Repo billing-service]" in citations
+
+
+def test_llm_service_fallback_intent_branches() -> None:
+    chunks = [
+        {"source": "Jira BILL-204", "content": "Payment idempotency via Redis SETNX."},
+        {"source": "PR #88", "content": "Razorpay webhook retry logic."},
+    ]
+
+    # Greeting intent
+    res_greet = LLMService._synthesize_grounded_fallback("Hello there", "snapmeet/billing-service", chunks)
+    assert "KIAN" in res_greet
+
+    # Hinglish greeting
+    res_namaste = LLMService._synthesize_grounded_fallback("Namaste kaise ho aap", "snapmeet/billing-service", chunks)
+    assert "Namaste" in res_namaste or "badhiya" in res_namaste
+
+    # Cache / Redis question
+    res_redis = LLMService._synthesize_grounded_fallback("Is Redis being used here?", "snapmeet/billing-service", chunks)
+    assert "Redis" in res_redis
+
+    # Database question
+    res_db = LLMService._synthesize_grounded_fallback("What database are we using?", "snapmeet/billing-service", chunks)
+    assert "PostgreSQL" in res_db
+
+    # Graph question
+    res_graph = LLMService._synthesize_grounded_fallback("Tell me about the Neo4j graph lineage", "snapmeet/billing-service", chunks)
+    assert "Neo4j" in res_graph
+
+    # Anomaly question
+    res_anom = LLMService._synthesize_grounded_fallback("Are there any anomalies?", "snapmeet/billing-service", chunks)
+    assert "HW-03" in res_anom or "anomaly" in res_anom.lower()
+
+    # Empty chunks / fallback
+    res_empty = LLMService._synthesize_grounded_fallback("Random unrelated question", "snapmeet/billing-service", [])
+    assert "snapmeet/billing-service" in res_empty
+

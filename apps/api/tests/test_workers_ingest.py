@@ -142,3 +142,81 @@ def test_process_jira_webhook_statuses():
 def test_process_jira_webhook_empty():
     result = process_jira_webhook(organization_id="snapmeet", event_type="jira:issue_updated", payload={})
     assert result["status"] == "skipped_no_issue"
+
+
+def test_process_linear_webhook():
+    from workers.tasks.ingest import process_linear_webhook
+
+    payload = {
+        "action": "create",
+        "data": {
+            "identifier": "ENG-104",
+            "title": "Setup OAuth microservice",
+            "description": "Implement JWT and refresh rotation",
+            "state": {"name": "In Progress"},
+            "assignee": {"id": "usr_aman", "name": "Aman", "email": "aman@snapmeet.com"},
+        },
+    }
+    result = process_linear_webhook(organization_id="snapmeet", action="create", payload=payload)
+    assert result["status"] == "normalized"
+    assert result["external_id"] == "ENG-104"
+    assert result["task_status"] == "IN_PROGRESS"
+
+
+def test_process_gitlab_webhook():
+    from workers.tasks.ingest import process_gitlab_webhook
+
+    payload = {
+        "object_kind": "merge_request",
+        "project": {"path_with_namespace": "snapmeet/auth-service"},
+        "object_attributes": {
+            "iid": 12,
+            "title": "Resolve [AUTH-101] token issue",
+            "description": "Closes AUTH-101",
+            "source_branch": "fix/AUTH-101-token",
+            "state": "opened",
+        },
+    }
+    result = process_gitlab_webhook(organization_id="snapmeet", event_type="merge_request", payload=payload)
+    assert result["status"] == "normalized"
+    assert "AUTH-101" in result["linked_keys"]
+
+    ping_payload = {"object_kind": "push", "project": {"name": "auth-service"}}
+    res_push = process_gitlab_webhook(organization_id="snapmeet", event_type="push", payload=ping_payload)
+    assert res_push["status"] == "acknowledged"
+
+
+def test_process_github_webhook_misc():
+    res_ping = process_github_webhook(
+        organization_id="snapmeet",
+        event_type="ping",
+        payload={"repository": {"full_name": "snapmeet/test-repo"}},
+    )
+    assert res_ping["status"] == "normalized"
+
+    res_unknown = process_github_webhook(
+        organization_id="snapmeet",
+        event_type="workflow_run",
+        payload={},
+    )
+    assert res_unknown["status"] == "ignored_or_unhandled"
+
+
+def test_embeddings_generation_and_storage():
+    from workers.tasks.embeddings import generate_768_embedding, generate_and_store_embedding
+
+    vec = generate_768_embedding("FastAPI route handler for auth tokens")
+    assert len(vec) == 768
+    # Vector length should be normalized (~1.0)
+    norm = sum(x * x for x in vec)
+    assert 0.95 <= norm <= 1.05
+
+    result = generate_and_store_embedding(
+        organization_id="snapmeet",
+        repo_id="snapmeet/auth-service",
+        entity_type="commit",
+        entity_id="c_89a1bc",
+        content_chunk="FastAPI route handler for auth tokens",
+    )
+    assert result["dimensions"] == 768
+

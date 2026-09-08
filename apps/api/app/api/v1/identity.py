@@ -1,16 +1,12 @@
-import json
-from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
-import jwt
-from apps.api.app.core.security import create_access_token, decode_access_token
-from apps.api.app.services.acl import PreRetrievalACL
+from apps.api.app.core.database import get_db
+from apps.api.app.core.security import create_access_token, get_current_user
 from apps.api.app.services.identity_service import IdentityService
-from fastapi import APIRouter, Header, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from packages.schemas.identity import (
     Device,
     DeviceEnrollRequest,
-    DeviceRevokeRequest,
     ExternalIdentity,
     IdentityLinkRequest,
     Invitation,
@@ -19,32 +15,18 @@ from packages.schemas.identity import (
     Team,
     TeamCreate,
     UserIdentityContextResponse,
-    UserRole,
 )
 from packages.schemas.permissions import UserPermissionProfile
 from pydantic import BaseModel
+from supabase import Client
 
 router = APIRouter(prefix="", tags=["Enterprise Identity & Provisioning"])
-USERS_FILE = Path(__file__).resolve().parent.parent.parent.parent.parent / "db" / "users_store.json"
 
 
-def _get_auth_profile(authorization: str) -> UserPermissionProfile:
-    token = authorization.replace("Bearer ", "").strip()
-    try:
-        payload = decode_access_token(token)
-    except jwt.PyJWTError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid authorization token: {e!s}",
-        ) from e
-
-    return UserPermissionProfile(
-        organization_id=payload.get("org_id", ""),
-        user_id=payload.get("sub", ""),
-        email=payload.get("email", ""),
-        allowed_repo_ids=payload.get("allowed_repos", []),
-        is_org_admin=payload.get("is_org_admin", False),
-    )
+def _rows(data: Any) -> list[dict[str, Any]]:
+    if isinstance(data, list):
+        return [r for r in data if isinstance(r, dict)]
+    return []
 
 
 # =============================================================================
@@ -54,14 +36,13 @@ def _get_auth_profile(authorization: str) -> UserPermissionProfile:
 @router.get("/me/context", response_model=UserIdentityContextResponse, status_code=status.HTTP_200_OK)
 @router.get("/identity/me", response_model=UserIdentityContextResponse, status_code=status.HTTP_200_OK)
 async def get_current_user_identity_context(
+    profile: Annotated[UserPermissionProfile, Depends(get_current_user)],
     device_id: str | None = Query(None),
-    authorization: str = Header(..., alias="Authorization"),
 ) -> UserIdentityContextResponse:
     """
     Returns complete authorized runtime context (Org, Teams, Role, Device, Tool Links).
     Used by Desktop HUD to display employee work assignments without manual entry.
     """
-    profile = _get_auth_profile(authorization)
     return IdentityService.get_user_identity_context(
         user_id=profile.user_id,
         organization_id=profile.organization_id,
@@ -76,9 +57,8 @@ async def get_current_user_identity_context(
 @router.post("/identity/teams", response_model=Team, status_code=status.HTTP_201_CREATED)
 async def create_team(
     team_in: TeamCreate,
-    authorization: str = Header(..., alias="Authorization"),
+    profile: Annotated[UserPermissionProfile, Depends(get_current_user)],
 ) -> Team:
-    profile = _get_auth_profile(authorization)
     return IdentityService.create_team(
         organization_id=profile.organization_id,
         name=team_in.name,
@@ -88,9 +68,8 @@ async def create_team(
 
 @router.get("/identity/teams", response_model=list[Team], status_code=status.HTTP_200_OK)
 async def list_teams(
-    authorization: str = Header(..., alias="Authorization"),
+    profile: Annotated[UserPermissionProfile, Depends(get_current_user)],
 ) -> list[Team]:
-    profile = _get_auth_profile(authorization)
     return IdentityService.list_teams(profile.organization_id)
 
 
@@ -102,9 +81,8 @@ class AddTeamMemberRequest(BaseModel):
 async def add_member_to_team(
     team_id: str,
     body: AddTeamMemberRequest,
-    authorization: str = Header(..., alias="Authorization"),
+    profile: Annotated[UserPermissionProfile, Depends(get_current_user)],
 ) -> dict[str, str]:
-    profile = _get_auth_profile(authorization)
     IdentityService.add_user_to_team(profile.organization_id, team_id, body.user_id)
     return {"status": "success", "message": f"User {body.user_id} added to team {team_id}"}
 
@@ -116,9 +94,8 @@ async def add_member_to_team(
 @router.post("/identity/invitations", response_model=Invitation, status_code=status.HTTP_201_CREATED)
 async def create_invitation(
     inv_in: InvitationCreate,
-    authorization: str = Header(..., alias="Authorization"),
+    profile: Annotated[UserPermissionProfile, Depends(get_current_user)],
 ) -> Invitation:
-    profile = _get_auth_profile(authorization)
     return IdentityService.create_invitation(
         organization_id=profile.organization_id,
         email=inv_in.email,
@@ -131,9 +108,8 @@ async def create_invitation(
 
 @router.get("/identity/invitations", response_model=list[Invitation], status_code=status.HTTP_200_OK)
 async def list_invitations(
-    authorization: str = Header(..., alias="Authorization"),
+    profile: Annotated[UserPermissionProfile, Depends(get_current_user)],
 ) -> list[Invitation]:
-    profile = _get_auth_profile(authorization)
     return IdentityService.list_invitations(profile.organization_id)
 
 
@@ -167,24 +143,41 @@ async def accept_invitation(body: InvitationAccept) -> dict[str, Any]:
 
 @router.get("/identity/members", status_code=status.HTTP_200_OK)
 async def list_organization_members(
-    authorization: str = Header(..., alias="Authorization"),
+    profile: Annotated[UserPermissionProfile, Depends(get_current_user)],
+    db: Annotated[Client, Depends(get_db)] = None,
 ) -> list[dict[str, Any]]:
-    profile = _get_auth_profile(authorization)
-    users_db = {}
-    if USERS_FILE.exists():
+    members = []
+    if db:
         try:
-            with open(USERS_FILE, encoding="utf-8") as f:
-                users_db = json.load(f)
+            res = db.table("users").select("*").eq("organization_id", profile.organization_id).execute()
+            for u in _rows(res.data):
+                uid = str(u["id"])
+                teams = IdentityService.get_user_teams(profile.organization_id, uid)
+                ext = IdentityService.list_external_identities(profile.organization_id, uid)
+                members.append({
+                    "user_id": uid,
+                    "name": u.get("full_name") or u.get("name") or "Employee",
+                    "email": u.get("email", ""),
+                    "role": "ADMIN" if u.get("is_org_admin") else "DEVELOPER",
+                    "is_org_admin": bool(u.get("is_org_admin", False)),
+                    "allowed_repos": [f"{profile.organization_id}/billing-service"],
+                    "status": "ACTIVE",
+                    "teams": teams,
+                    "external_identities": ext,
+                })
+            if members:
+                return members
         except Exception:
             pass
 
-    members = []
-    for u in users_db.values():
+    # Fallback to in-memory store
+    for u in IdentityService._mem_users.values():
         if u.get("organization_id") == profile.organization_id:
-            teams = IdentityService.get_user_teams(profile.organization_id, u["user_id"])
-            ext = IdentityService.list_external_identities(profile.organization_id, u["user_id"])
+            uid = str(u["user_id"])
+            teams = IdentityService.get_user_teams(profile.organization_id, uid)
+            ext = IdentityService.list_external_identities(profile.organization_id, uid)
             members.append({
-                "user_id": u["user_id"],
+                "user_id": uid,
                 "name": u.get("name", "Employee"),
                 "email": u.get("email", ""),
                 "role": u.get("role", "DEVELOPER"),
@@ -205,25 +198,23 @@ class UpdateMemberStatusRequest(BaseModel):
 async def update_member_status(
     user_id: str,
     body: UpdateMemberStatusRequest,
-    authorization: str = Header(..., alias="Authorization"),
+    profile: Annotated[UserPermissionProfile, Depends(get_current_user)],
+    db: Annotated[Client, Depends(get_db)] = None,
 ) -> dict[str, str]:
-    profile = _get_auth_profile(authorization)
     if not profile.is_org_admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin permissions required.")
 
-    users_db = {}
-    if USERS_FILE.exists():
+    if db:
         try:
-            with open(USERS_FILE, encoding="utf-8") as f:
-                users_db = json.load(f)
+            res = db.table("users").update({"status": body.status}).eq("organization_id", profile.organization_id).eq("id", user_id).execute()
+            if _rows(res.data):
+                return {"status": "success", "message": f"User status updated to {body.status}"}
         except Exception:
             pass
 
-    for u in users_db.values():
+    for u in IdentityService._mem_users.values():
         if u.get("user_id") == user_id and u.get("organization_id") == profile.organization_id:
             u["status"] = body.status
-            with open(USERS_FILE, "w", encoding="utf-8") as f:
-                json.dump(users_db, f, indent=2)
             return {"status": "success", "message": f"User status updated to {body.status}"}
 
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found.")
@@ -236,9 +227,8 @@ async def update_member_status(
 @router.post("/identity/devices/enroll", response_model=Device, status_code=status.HTTP_201_CREATED)
 async def enroll_device(
     dev_in: DeviceEnrollRequest,
-    authorization: str = Header(..., alias="Authorization"),
+    profile: Annotated[UserPermissionProfile, Depends(get_current_user)],
 ) -> Device:
-    profile = _get_auth_profile(authorization)
     return IdentityService.enroll_device(
         user_id=profile.user_id,
         organization_id=profile.organization_id,
@@ -250,9 +240,8 @@ async def enroll_device(
 
 @router.get("/identity/devices", response_model=list[Device], status_code=status.HTTP_200_OK)
 async def list_devices(
-    authorization: str = Header(..., alias="Authorization"),
+    profile: Annotated[UserPermissionProfile, Depends(get_current_user)],
 ) -> list[Device]:
-    profile = _get_auth_profile(authorization)
     return IdentityService.list_devices(
         organization_id=profile.organization_id,
         user_id=profile.user_id if not profile.is_org_admin else None,
@@ -262,9 +251,8 @@ async def list_devices(
 @router.post("/identity/devices/{device_id}/revoke", status_code=status.HTTP_200_OK)
 async def revoke_device(
     device_id: str,
-    authorization: str = Header(..., alias="Authorization"),
+    profile: Annotated[UserPermissionProfile, Depends(get_current_user)],
 ) -> dict[str, str]:
-    profile = _get_auth_profile(authorization)
     success = IdentityService.revoke_device(profile.organization_id, device_id)
     if not success:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Device not found.")
@@ -278,9 +266,8 @@ async def revoke_device(
 @router.post("/identity/links", response_model=ExternalIdentity, status_code=status.HTTP_201_CREATED)
 async def link_external_identity(
     link_in: IdentityLinkRequest,
-    authorization: str = Header(..., alias="Authorization"),
+    profile: Annotated[UserPermissionProfile, Depends(get_current_user)],
 ) -> ExternalIdentity:
-    profile = _get_auth_profile(authorization)
     return IdentityService.link_external_identity(
         user_id=link_in.user_id,
         organization_id=profile.organization_id,
@@ -293,9 +280,8 @@ async def link_external_identity(
 
 @router.get("/identity/links", response_model=list[ExternalIdentity], status_code=status.HTTP_200_OK)
 async def list_external_identities(
-    authorization: str = Header(..., alias="Authorization"),
+    profile: Annotated[UserPermissionProfile, Depends(get_current_user)],
 ) -> list[ExternalIdentity]:
-    profile = _get_auth_profile(authorization)
     return IdentityService.list_external_identities(profile.organization_id)
 
 
@@ -305,9 +291,8 @@ async def list_external_identities(
 
 @router.post("/identity/auth/device-code", status_code=status.HTTP_200_OK)
 async def create_device_authorization_code(
-    authorization: str = Header(..., alias="Authorization"),
+    profile: Annotated[UserPermissionProfile, Depends(get_current_user)],
 ) -> dict[str, str]:
-    profile = _get_auth_profile(authorization)
     code = IdentityService.create_authorization_code(profile.user_id, profile.organization_id)
     return {"code": code}
 
@@ -322,7 +307,6 @@ async def exchange_device_authorization_code(body: ExchangeCodeRequest) -> dict[
     if not record:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired authorization code.")
 
-    # Generate fresh JWT for desktop session
     user_id = record["user_id"]
     org_id = record["organization_id"]
 

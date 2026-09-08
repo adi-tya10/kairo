@@ -1,15 +1,13 @@
-from typing import Any
-
-import jwt
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
-from pydantic import BaseModel
+from typing import Annotated, Any
 
 from apps.api.app.core.database import get_graph_db
-from apps.api.app.core.security import decode_access_token
+from apps.api.app.core.security import get_current_user
 from apps.api.app.services.acl import PreRetrievalACL
 from apps.api.app.services.graph_service import DecisionNode, GraphLineageService
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from neo4j import Session as Neo4jSession
 from packages.schemas.permissions import UserPermissionProfile
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/graph", tags=["Knowledge Graph"])
 
@@ -25,10 +23,10 @@ class GraphLineageResponse(BaseModel):
 @router.get("/lineage/{task_key}", response_model=GraphLineageResponse, status_code=status.HTTP_200_OK)
 async def get_task_decision_lineage(
     task_key: str,
+    profile: Annotated[UserPermissionProfile, Depends(get_current_user)],
     org_id: str | None = Query(None),
     organization_id: str | None = Query(None),
     repo_id: str | None = Query(None),
-    authorization: str = Header(..., alias="Authorization"),
     graph_session: Neo4jSession = Depends(get_graph_db),
 ) -> GraphLineageResponse:
     """
@@ -42,23 +40,6 @@ async def get_task_decision_lineage(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="organization_id or org_id query parameter is required.",
         )
-
-    token = authorization.replace("Bearer ", "").strip()
-    try:
-        payload = decode_access_token(token)
-    except jwt.PyJWTError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid authorization token: {e!s}",
-        ) from e
-
-    profile = UserPermissionProfile(
-        organization_id=payload.get("org_id", ""),
-        user_id=payload.get("sub", ""),
-        email=payload.get("email", ""),
-        allowed_repo_ids=payload.get("allowed_repos", []),
-        is_org_admin=payload.get("is_org_admin", False),
-    )
 
     target_repo = repo_id or (
         profile.allowed_repo_ids[0]

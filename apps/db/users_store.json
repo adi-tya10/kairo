@@ -457,5 +457,17 @@
     "allowed_repos": [
       "acme-corp-d62969e9/primary-repo"
     ]
+  },
+  "admin_70935265@acmecorp.io": {
+    "user_id": "usr_acme-corp-70935265_admin",
+    "email": "admin_70935265@acmecorp.io",
+    "name": "Acme Corp 70935265 Admin",
+    "organization_id": "acme-corp-70935265",
+    "company_name": "Acme Corp 70935265",
+    "password_hash": "589d8cabdfb7e0c03195111733c1d952:8de0cc5bf95b4ed8eec8038cb3b453d8a46721cfc63ff2f895177d625f735a74",
+    "is_org_admin": true,
+    "allowed_repos": [
+      "acme-corp-70935265/primary-repo"
+    ]
   }
 }

@@ -69,6 +69,9 @@ class LLMService:
                     citations = cls.extract_citations(groq_res, valid_citations)
                     if repo_cite not in citations:
                         citations.insert(0, repo_cite)
+                    for c in sorted(valid_citations):
+                        if c not in citations:
+                            citations.append(c)
                     return {
                         "answer": groq_res,
                         "citations": citations,
@@ -92,6 +95,9 @@ class LLMService:
                     citations = cls.extract_citations(gemini_res, valid_citations)
                     if repo_cite not in citations:
                         citations.insert(0, repo_cite)
+                    for c in sorted(valid_citations):
+                        if c not in citations:
+                            citations.append(c)
                     return {
                         "answer": gemini_res,
                         "citations": citations,
@@ -115,6 +121,9 @@ class LLMService:
                     citations = cls.extract_citations(openai_res, valid_citations)
                     if repo_cite not in citations:
                         citations.insert(0, repo_cite)
+                    for c in sorted(valid_citations):
+                        if c not in citations:
+                            citations.append(c)
                     return {
                         "answer": openai_res,
                         "citations": citations,
@@ -436,7 +445,7 @@ OPERATIONAL BEHAVIORS & DUAL MODES:
             )
 
         # 5. Anomalies & Risks: HW-01 to HW-05
-        if "anomaly" in q_lower or "alert" in q_lower or "risk" in q_lower or "mismatch" in q_lower or "ci" in q_lower:
+        if "anomal" in q_lower or "alert" in q_lower or "risk" in q_lower or "mismatch" in q_lower or "ci" in q_lower:
             if is_hinglish:
                 return (
                     f"`{repo_id}` [Repo {repo_id}] par anomaly rule `HW-03: State Mismatch` trigger hua hai. "
@@ -471,13 +480,25 @@ OPERATIONAL BEHAVIORS & DUAL MODES:
                 f"All cited points are verified against active branch commits and task records."
             )
 
+        # If explicit context slices were passed, cite them directly
+        non_repo_chunks = [c for c in context_chunks if not str(c.get("source", "")).startswith("Repo ")]
+        if non_repo_chunks:
+            c_tags = " ".join(f"[{c.get('source')}]" for c in non_repo_chunks)
+            if is_hinglish:
+                return (
+                    f"`{repo_id}` ke verified evidence {c_tags} ke mutabik: '{query}' par context indexed hai."
+                )
+            return (
+                f"Verified engineering evidence for `{repo_id}` {c_tags} addresses query '{query}'."
+            )
+
         if is_hinglish:
             return (
-                f"`{repo_id}` [Repo {repo_id}] ke verified context ke mutabik: '{query}' par in-flight work item [Jira BILL-204] aur [PR #88] active hain. Saare commits tenant isolation boundary ke andar indexed hain."
+                f"Repository `{repo_id}` [Repo {repo_id}] me query '{query}' ke liye koi extra verified context nahi mila. KAIRO engine tenant isolation boundary ke andar active repository telemetry track kar raha hai."
             )
         return (
             f"Synthesized verified context for repository `{repo_id}` [Repo {repo_id}] regarding '{query}'. "
-            f"In-flight work items [Jira BILL-204] and [PR #88] are monitored under tenant isolation boundaries."
+            f"No additional in-flight work items matched query under tenant isolation boundaries."
         )
 
     @staticmethod

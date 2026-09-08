@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     # Webhook Secrets (HMAC)
     GITHUB_WEBHOOK_SECRET: str = "kairo_github_webhook_secret_local"
     JIRA_WEBHOOK_SECRET: str = "kairo_jira_webhook_secret_local"
+    LINEAR_WEBHOOK_SECRET: str = "kairo_linear_webhook_secret_local"
+    GITLAB_WEBHOOK_SECRET: str = "kairo_gitlab_webhook_secret_local"
+    SLACK_WEBHOOK_URL: str = ""
 
 
 @lru_cache

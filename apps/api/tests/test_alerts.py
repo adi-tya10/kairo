@@ -80,3 +80,47 @@ def test_celery_alert_task() -> None:
     result = dispatch_anomaly_alert("snapmeet", "AUTH-101", "snapmeet/auth-service", anomaly_data)
     assert result["status"] == "DELIVERED"
     assert result["blocks_count"] >= 4
+
+
+def test_api_alerts_dispatch_with_webhook_url(monkeypatch) -> None:
+    import httpx
+
+    token = create_access_token({
+        "sub": "usr_aman",
+        "email": "aman@snapmeet.com",
+        "org_id": "snapmeet",
+        "allowed_repos": ["snapmeet/billing-service"],
+    })
+
+    class MockResponse:
+        status_code = 200
+
+    async def mock_post(*args, **kwargs):
+        return MockResponse()
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", mock_post)
+
+    payload = {
+        "organization_id": "snapmeet",
+        "task_key": "BILL-204",
+        "repo_id": "snapmeet/billing-service",
+        "webhook_url": "https://hooks.slack.com/services/T00/B00/X00",
+        "anomaly": {
+            "rule_id": "HW-03",
+            "anomaly_type": AnomalyType.HW_03.value,
+            "triggered": True,
+            "severity": AnomalySeverity.HIGH.value,
+            "summary": "State Mismatch",
+            "description": "Jira marked DONE but PR open",
+            "recommended_action": "Fix CI",
+        },
+    }
+
+    response = client.post(
+        "/api/v1/alerts/dispatch",
+        json=payload,
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    assert response.json()["dispatched"] is True
+

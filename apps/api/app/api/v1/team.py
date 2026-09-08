@@ -1,16 +1,15 @@
 import uuid
 from typing import Annotated, Any, Literal, cast
 
-import jwt
 from apps.api.app.core.database import get_db
-from apps.api.app.core.security import decode_access_token
+from apps.api.app.core.security import get_current_user
 from apps.api.app.engines.team_continuity import (
     HandoffAuditRecord,
     ServiceOwnershipRisk,
     TeamContinuityEngine,
 )
 from apps.api.app.services.acl import PreRetrievalACL
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from packages.schemas.permissions import UserPermissionProfile
 from pydantic import BaseModel
 from supabase import Client
@@ -29,6 +28,7 @@ class OrganizationCreate(BaseModel):
     name: str
     domain: str
 
+
 class OrganizationResponse(BaseModel):
     id: str
     name: str
@@ -36,22 +36,14 @@ class OrganizationResponse(BaseModel):
     created_at: str | None = None
     updated_at: str | None = None
 
+
 @router.post("/organizations", response_model=OrganizationResponse, status_code=status.HTTP_201_CREATED)
 async def create_organization(
     body: OrganizationCreate,
     db: Annotated[Client, Depends(get_db)],
-    authorization: str = Header(..., alias="Authorization"),
+    current_user: Annotated[UserPermissionProfile, Depends(get_current_user)],
 ) -> OrganizationResponse:
     """Creates a new tenant organization in PostgreSQL."""
-    token = authorization.replace("Bearer ", "").strip()
-    try:
-        decode_access_token(token)
-    except jwt.PyJWTError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid authorization token: {e!s}",
-        ) from e
-
     org_id = body.id.strip().lower()
     name = body.name.strip()
     domain = body.domain.strip().lower()
@@ -92,22 +84,14 @@ async def create_organization(
         updated_at=str(row.get("updated_at", "")),
     )
 
+
 @router.get("/organizations/{org_id}", response_model=OrganizationResponse, status_code=status.HTTP_200_OK)
 async def get_organization(
     org_id: str,
     db: Annotated[Client, Depends(get_db)],
-    authorization: str = Header(..., alias="Authorization"),
+    current_user: Annotated[UserPermissionProfile, Depends(get_current_user)],
 ) -> OrganizationResponse:
     """Fetches an organization record from PostgreSQL."""
-    token = authorization.replace("Bearer ", "").strip()
-    try:
-        decode_access_token(token)
-    except jwt.PyJWTError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid authorization token: {e!s}",
-        ) from e
-
     target_id = org_id.strip().lower()
     res = db.table("organizations").select("*").eq("id", target_id).execute()
     rows = _rows(res.data)
@@ -126,21 +110,13 @@ async def get_organization(
         updated_at=str(row.get("updated_at", "")),
     )
 
+
 @router.get("/organizations", response_model=list[OrganizationResponse], status_code=status.HTTP_200_OK)
 async def list_organizations(
     db: Annotated[Client, Depends(get_db)],
-    authorization: str = Header(..., alias="Authorization"),
+    current_user: Annotated[UserPermissionProfile, Depends(get_current_user)],
 ) -> list[OrganizationResponse]:
     """Lists all organizations from PostgreSQL."""
-    token = authorization.replace("Bearer ", "").strip()
-    try:
-        decode_access_token(token)
-    except jwt.PyJWTError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid authorization token: {e!s}",
-        ) from e
-
     res = db.table("organizations").select("*").execute()
     return [
         OrganizationResponse(
@@ -152,6 +128,7 @@ async def list_organizations(
         )
         for row in _rows(res.data)
     ]
+
 
 class ContinuityMapResponse(BaseModel):
     organization_id: str
@@ -187,29 +164,13 @@ class HandoffHistoryResponse(BaseModel):
 @router.get("/{org_id}/continuity-matrix", response_model=ContinuityMapResponse, status_code=status.HTTP_200_OK)
 async def get_team_continuity_map(
     db: Annotated[Client, Depends(get_db)],
+    current_user: Annotated[UserPermissionProfile, Depends(get_current_user)],
     org_id: str | None = None,
     organization_id: str | None = Query(None),
-    authorization: str = Header(..., alias="Authorization"),
 ) -> ContinuityMapResponse:
     """Returns organizational bus factor and single point of failure map dynamically for the tenant from PostgreSQL."""
     target_org_id = (org_id or organization_id or "default_org").strip().lower()
-    token = authorization.replace("Bearer ", "").strip()
-    try:
-        payload = decode_access_token(token)
-    except jwt.PyJWTError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid authorization token: {e!s}",
-        ) from e
-
-    profile = UserPermissionProfile(
-        organization_id=str(payload.get("org_id", "")),
-        user_id=str(payload.get("sub", "")),
-        email=str(payload.get("email", "")),
-        allowed_repo_ids=[str(r) for r in payload.get("allowed_repos", [])],
-        is_org_admin=bool(payload.get("is_org_admin", False)),
-    )
-    PreRetrievalACL.validate_tenant_access(target_org_id, profile.organization_id)
+    PreRetrievalACL.validate_tenant_access(target_org_id, current_user.organization_id)
 
     # Query repository ownership and maintainer permissions from PostgreSQL
     perms_res = db.table("user_repo_permissions").select("repo_id, user_id, access_level").eq("organization_id", target_org_id).execute()
@@ -253,29 +214,13 @@ async def get_team_continuity_map(
 @router.get("/{org_id}/anomalies", response_model=AnomalyFeedResponse, status_code=status.HTTP_200_OK)
 async def get_org_anomalies_feed(
     db: Annotated[Client, Depends(get_db)],
+    current_user: Annotated[UserPermissionProfile, Depends(get_current_user)],
     org_id: str | None = None,
     organization_id: str | None = Query(None),
-    authorization: str = Header(..., alias="Authorization"),
 ) -> AnomalyFeedResponse:
     """Returns active organizational anomaly radar alerts dynamically for the tenant from PostgreSQL."""
     target_org_id = (org_id or organization_id or "default_org").strip().lower()
-    token = authorization.replace("Bearer ", "").strip()
-    try:
-        payload = decode_access_token(token)
-    except jwt.PyJWTError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid authorization token: {e!s}",
-        ) from e
-
-    profile = UserPermissionProfile(
-        organization_id=str(payload.get("org_id", "")),
-        user_id=str(payload.get("sub", "")),
-        email=str(payload.get("email", "")),
-        allowed_repo_ids=[str(r) for r in payload.get("allowed_repos", [])],
-        is_org_admin=bool(payload.get("is_org_admin", False)),
-    )
-    PreRetrievalACL.validate_tenant_access(target_org_id, profile.organization_id)
+    PreRetrievalACL.validate_tenant_access(target_org_id, current_user.organization_id)
 
     raw_res = db.table("handoff_packages").select("id, task_key, anomalies, created_at").eq("organization_id", target_org_id).execute()
     anomalies: list[AnomalyFeedItem] = []
@@ -306,29 +251,13 @@ async def get_org_anomalies_feed(
 @router.get("/{org_id}/handoffs", response_model=HandoffHistoryResponse, status_code=status.HTTP_200_OK)
 async def get_org_handoff_history(
     db: Annotated[Client, Depends(get_db)],
+    current_user: Annotated[UserPermissionProfile, Depends(get_current_user)],
     org_id: str | None = None,
     organization_id: str | None = Query(None),
-    authorization: str = Header(..., alias="Authorization"),
 ) -> HandoffHistoryResponse:
     """Returns audit log of all transition events dynamically for the tenant from PostgreSQL."""
     target_org_id = (org_id or organization_id or "default_org").strip().lower()
-    token = authorization.replace("Bearer ", "").strip()
-    try:
-        payload = decode_access_token(token)
-    except jwt.PyJWTError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid authorization token: {e!s}",
-        ) from e
-
-    profile = UserPermissionProfile(
-        organization_id=str(payload.get("org_id", "")),
-        user_id=str(payload.get("sub", "")),
-        email=str(payload.get("email", "")),
-        allowed_repo_ids=[str(r) for r in payload.get("allowed_repos", [])],
-        is_org_admin=bool(payload.get("is_org_admin", False)),
-    )
-    PreRetrievalACL.validate_tenant_access(target_org_id, profile.organization_id)
+    PreRetrievalACL.validate_tenant_access(target_org_id, current_user.organization_id)
 
     hp_res = db.table("handoff_packages").select("id, task_key, from_user_id, to_user_id, status, briefing, created_at").eq("organization_id", target_org_id).order("created_at", desc=True).execute()
     users_res = db.table("users").select("id, full_name").eq("organization_id", target_org_id).execute()
@@ -388,20 +317,11 @@ class AddProjectRequest(BaseModel):
 async def get_tenant_integrations(
     org_id: str,
     db: Annotated[Client, Depends(get_db)],
-    authorization: str = Header(..., alias="Authorization"),
+    current_user: Annotated[UserPermissionProfile, Depends(get_current_user)],
 ) -> dict[str, Any]:
     """Returns real connected repositories, channels, and project keys for the tenant from PostgreSQL."""
-    token = authorization.replace("Bearer ", "").strip()
-    try:
-        payload = decode_access_token(token)
-    except jwt.PyJWTError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid authorization token: {e!s}",
-        ) from e
-
     target_org_id = org_id.strip().lower()
-    PreRetrievalACL.validate_tenant_access(target_org_id, str(payload.get("org_id", "")))
+    PreRetrievalACL.validate_tenant_access(target_org_id, current_user.organization_id)
 
     # 1. Repositories from user_repo_permissions table
     repos_res = db.table("user_repo_permissions").select("id, repo_id, access_level, synced_at").eq("organization_id", target_org_id).execute()
@@ -462,34 +382,25 @@ async def add_tenant_repository(
     org_id: str,
     body: AddRepoRequest,
     db: Annotated[Client, Depends(get_db)],
-    authorization: str = Header(..., alias="Authorization"),
+    current_user: Annotated[UserPermissionProfile, Depends(get_current_user)],
 ) -> dict[str, Any]:
     """Registers and connects a new repository for the tenant in PostgreSQL."""
-    token = authorization.replace("Bearer ", "").strip()
-    try:
-        payload = decode_access_token(token)
-    except jwt.PyJWTError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid authorization token: {e!s}",
-        ) from e
-
     target_org_id = org_id.strip().lower()
-    PreRetrievalACL.validate_tenant_access(target_org_id, str(payload.get("org_id", "")))
+    PreRetrievalACL.validate_tenant_access(target_org_id, current_user.organization_id)
 
     repo_name = body.name.strip()
-    user_id = str(payload.get("sub", "")) or "usr_admin"
+    user_id = current_user.user_id or "usr_admin"
 
     # Ensure user exists in users table to satisfy foreign key constraint if needed
     user_check = db.table("users").select("id").eq("organization_id", target_org_id).eq("id", user_id).execute()
     if not _rows(user_check.data):
-        email = str(payload.get("email", f"{user_id}@{target_org_id}.local"))
+        email = current_user.email or f"{user_id}@{target_org_id}.local"
         user_record: dict[str, Any] = {
             "id": user_id,
             "organization_id": target_org_id,
             "email": email,
             "full_name": email.split("@")[0].replace(".", " ").title(),
-            "is_org_admin": bool(payload.get("is_org_admin", True)),
+            "is_org_admin": current_user.is_org_admin,
         }
         db.table("users").upsert(user_record).execute()
 
@@ -519,20 +430,11 @@ async def delete_tenant_repository(
     org_id: str,
     repo_id: str,
     db: Annotated[Client, Depends(get_db)],
-    authorization: str = Header(..., alias="Authorization"),
+    current_user: Annotated[UserPermissionProfile, Depends(get_current_user)],
 ) -> dict[str, Any]:
     """Disconnects a repository from the tenant in PostgreSQL."""
-    token = authorization.replace("Bearer ", "").strip()
-    try:
-        payload = decode_access_token(token)
-    except jwt.PyJWTError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid authorization token: {e!s}",
-        ) from e
-
     target_org_id = org_id.strip().lower()
-    PreRetrievalACL.validate_tenant_access(target_org_id, str(payload.get("org_id", "")))
+    PreRetrievalACL.validate_tenant_access(target_org_id, current_user.organization_id)
 
     del_res = db.table("user_repo_permissions").delete().eq("organization_id", target_org_id).eq("id", repo_id).execute()
     if not _rows(del_res.data):
@@ -546,20 +448,11 @@ async def add_tenant_slack_channel(
     org_id: str,
     body: AddChannelRequest,
     db: Annotated[Client, Depends(get_db)],
-    authorization: str = Header(..., alias="Authorization"),
+    current_user: Annotated[UserPermissionProfile, Depends(get_current_user)],
 ) -> dict[str, Any]:
     """Registers an alert broadcast channel in PostgreSQL."""
-    token = authorization.replace("Bearer ", "").strip()
-    try:
-        payload = decode_access_token(token)
-    except jwt.PyJWTError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid authorization token: {e!s}",
-        ) from e
-
     target_org_id = org_id.strip().lower()
-    PreRetrievalACL.validate_tenant_access(target_org_id, str(payload.get("org_id", "")))
+    PreRetrievalACL.validate_tenant_access(target_org_id, current_user.organization_id)
 
     chan_name = body.name.strip()
     if not chan_name.startswith("#"):
@@ -591,20 +484,11 @@ async def delete_tenant_slack_channel(
     org_id: str,
     channel_id: str,
     db: Annotated[Client, Depends(get_db)],
-    authorization: str = Header(..., alias="Authorization"),
+    current_user: Annotated[UserPermissionProfile, Depends(get_current_user)],
 ) -> dict[str, Any]:
     """Disconnects an alert channel from PostgreSQL."""
-    token = authorization.replace("Bearer ", "").strip()
-    try:
-        payload = decode_access_token(token)
-    except jwt.PyJWTError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid authorization token: {e!s}",
-        ) from e
-
     target_org_id = org_id.strip().lower()
-    PreRetrievalACL.validate_tenant_access(target_org_id, str(payload.get("org_id", "")))
+    PreRetrievalACL.validate_tenant_access(target_org_id, current_user.organization_id)
 
     db.table("slack_channels").delete().eq("organization_id", target_org_id).eq("id", channel_id).execute()
     return {"status": "deleted", "channel_id": channel_id}
@@ -615,20 +499,11 @@ async def add_tenant_project_key(
     org_id: str,
     body: AddProjectRequest,
     db: Annotated[Client, Depends(get_db)],
-    authorization: str = Header(..., alias="Authorization"),
+    current_user: Annotated[UserPermissionProfile, Depends(get_current_user)],
 ) -> dict[str, Any]:
     """Registers a Jira or Linear project key in PostgreSQL."""
-    token = authorization.replace("Bearer ", "").strip()
-    try:
-        payload = decode_access_token(token)
-    except jwt.PyJWTError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid authorization token: {e!s}",
-        ) from e
-
     target_org_id = org_id.strip().lower()
-    PreRetrievalACL.validate_tenant_access(target_org_id, str(payload.get("org_id", "")))
+    PreRetrievalACL.validate_tenant_access(target_org_id, current_user.organization_id)
 
     pkey = body.key.strip().upper()
     pname = body.name.strip() or f"{pkey} Service Pod"
@@ -661,25 +536,14 @@ async def delete_tenant_project_key(
     org_id: str,
     project_id: str,
     db: Annotated[Client, Depends(get_db)],
-    authorization: str = Header(..., alias="Authorization"),
+    current_user: Annotated[UserPermissionProfile, Depends(get_current_user)],
 ) -> dict[str, Any]:
     """Disconnects a project key from PostgreSQL."""
-    token = authorization.replace("Bearer ", "").strip()
-    try:
-        payload = decode_access_token(token)
-    except jwt.PyJWTError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid authorization token: {e!s}",
-        ) from e
-
     target_org_id = org_id.strip().lower()
-    PreRetrievalACL.validate_tenant_access(target_org_id, str(payload.get("org_id", "")))
+    PreRetrievalACL.validate_tenant_access(target_org_id, current_user.organization_id)
 
     del_res = db.table("work_items").delete().eq("organization_id", target_org_id).eq("id", project_id).execute()
     if not _rows(del_res.data):
         db.table("work_items").delete().eq("organization_id", target_org_id).eq("project_key", project_id).execute()
 
     return {"status": "deleted", "project_id": project_id}
-
-

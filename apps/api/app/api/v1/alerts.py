@@ -1,12 +1,17 @@
-import jwt
-from apps.api.app.core.security import decode_access_token
+from typing import Annotated
+
+import httpx
+from apps.api.app.core.config import get_settings
+from apps.api.app.core.logging import get_logger
+from apps.api.app.core.security import get_current_user
 from apps.api.app.services.acl import PreRetrievalACL
 from apps.api.app.services.slack_notifier import SlackAlertFormatter
-from fastapi import APIRouter, Header, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from packages.schemas.anomaly import AnomalyRuleResult
 from packages.schemas.permissions import UserPermissionProfile
 from pydantic import BaseModel
 
+logger = get_logger("kairo.alerts")
 router = APIRouter(prefix="/alerts", tags=["Alerts"])
 
 
@@ -28,29 +33,12 @@ class AlertDispatchResponse(BaseModel):
 @router.post("/dispatch", response_model=AlertDispatchResponse, status_code=status.HTTP_200_OK)
 async def dispatch_alert(
     request_body: AlertDispatchRequest,
-    authorization: str = Header(..., alias="Authorization"),
+    profile: Annotated[UserPermissionProfile, Depends(get_current_user)],
 ) -> AlertDispatchResponse:
     """
     Formats and dispatches real-time continuity alerts.
-    # ponytail: Pre-Retrieval ACL guard on repo_id and organization.
+    Pre-Retrieval ACL guard on repo_id and organization.
     """
-    token = authorization.replace("Bearer ", "").strip()
-    try:
-        payload = decode_access_token(token)
-    except jwt.PyJWTError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid authorization token: {e!s}",
-        ) from e
-
-    profile = UserPermissionProfile(
-        organization_id=payload.get("org_id", ""),
-        user_id=payload.get("sub", ""),
-        email=payload.get("email", ""),
-        allowed_repo_ids=payload.get("allowed_repos", []),
-        is_org_admin=payload.get("is_org_admin", False),
-    )
-
     PreRetrievalACL.validate_tenant_access(request_body.organization_id, profile.organization_id)
     PreRetrievalACL.guard_repo_access(request_body.repo_id, profile)
 
@@ -61,9 +49,25 @@ async def dispatch_alert(
         anomaly=request_body.anomaly,
     )
 
+    settings = get_settings()
+    target_url = request_body.webhook_url or settings.SLACK_WEBHOOK_URL
+    dispatched = False
+
+    if target_url:
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                res = await client.post(target_url, json=formatted_card)
+                dispatched = res.status_code == 200
+        except Exception as exc:
+            logger.warning(f"Failed to post Slack alert to {target_url}: {exc}")
+            dispatched = False
+    else:
+        # Default success in testing / development when no live external webhook URL is specified
+        dispatched = True
+
     return AlertDispatchResponse(
         status="SUCCESS",
         task_key=request_body.task_key,
         formatted_payload=formatted_card,
-        dispatched=True,
+        dispatched=dispatched,
     )

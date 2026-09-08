@@ -241,3 +241,56 @@ def test_auth_code_deep_link_exchange(dev_headers: dict[str, str]) -> None:
     # 3. Second exchange fails
     res_fail = client.post("/api/v1/identity/auth/exchange-code", json={"code": code})
     assert res_fail.status_code == 400
+
+
+# =============================================================================
+# 7. Members Directory & Status Management Tests
+# =============================================================================
+
+def test_organization_members_directory(auth_headers: dict[str, str], dev_headers: dict[str, str]) -> None:
+    # 1. List members
+    res = client.get("/api/v1/identity/members", headers=auth_headers)
+    assert res.status_code == 200
+    members = res.json()
+    assert len(members) >= 1
+    assert any(m["user_id"] == "usr_rahul" for m in members)
+
+    # 2. Admin updates status
+    res_patch = client.patch(
+        "/api/v1/identity/members/usr_rahul/status",
+        headers=auth_headers,
+        json={"status": "SUSPENDED"},
+    )
+    assert res_patch.status_code == 200
+    assert "SUSPENDED" in res_patch.json()["message"]
+
+    # 3. Non-admin forbidden
+    res_forbidden = client.patch(
+        "/api/v1/identity/members/usr_rahul/status",
+        headers=dev_headers,
+        json={"status": "ACTIVE"},
+    )
+    assert res_forbidden.status_code == 403
+
+    # 4. Non-existent member 404
+    res_404 = client.patch(
+        "/api/v1/identity/members/non_existent_user_id/status",
+        headers=auth_headers,
+        json={"status": "ACTIVE"},
+    )
+    assert res_404.status_code == 404
+
+
+def test_device_edge_cases_and_resolver(auth_headers: dict[str, str], dev_headers: dict[str, str]) -> None:
+    # 1. Revoke non-existent device returns 404
+    res_404 = client.post("/api/v1/identity/devices/non_existent_device_id/revoke", headers=auth_headers)
+    assert res_404.status_code == 404
+
+    # 2. List external identities
+    res_links = client.get("/api/v1/identity/links", headers=auth_headers)
+    assert res_links.status_code == 200
+
+    # 3. Resolve unknown user returns None
+    assert IdentityService.resolve_canonical_user_id("snapmeet", "github", external_username="unknown_user_99999") is None
+    assert IdentityService.resolve_canonical_user_id("snapmeet", "github", email="unknown_email@snapmeet.com") is None
+

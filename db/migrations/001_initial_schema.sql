@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS users (
     github_username VARCHAR(100),
     jira_account_id VARCHAR(100),
     slack_user_id VARCHAR(100),
+    password_hash VARCHAR(255),
     is_org_admin BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

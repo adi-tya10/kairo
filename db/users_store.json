@@ -1,11 +1,11 @@
 {
   "priya@snapmeet.com": {
-    "user_id": "usr_7e4e9e46",
+    "user_id": "usr_4a3b0bf7",
     "email": "priya@snapmeet.com",
     "name": "Priya Patel",
     "organization_id": "snapmeet",
     "company_name": "Snapmeet",
-    "password_hash": "aea6756c8af53573c3e4372d1351f6e2:206e8127eb191531318c21be1a64440a0f71fcb8273dfd1454e765457a5ad99d",
+    "password_hash": "a25fc87c9c080e9b5e6ed9266abf28c7:d3c54b2a78a66e85f0ac5096910a92ca335895fc673e9540af24b4a991c6091d",
     "is_org_admin": false,
     "role": "DEVELOPER",
     "allowed_repos": [

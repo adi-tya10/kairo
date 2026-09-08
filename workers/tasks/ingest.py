@@ -1,10 +1,15 @@
 import re
+import uuid
 from typing import Any
 
+from apps.api.app.core.database import get_neo4j_driver, get_supabase_client
+from apps.api.app.core.logging import get_logger
 from apps.api.app.services.identity_service import IdentityService
 from packages.schemas.github_event import PRStatus, PullRequestEvent
 from packages.schemas.work_item import WorkItem, WorkItemSource, WorkItemStatus
 from workers.celery_app import celery_app
+
+logger = get_logger("kairo.workers.ingest")
 
 # Regex to extract Jira issue key (e.g. BILL-204, PAY-421) from text or branch names
 ISSUE_KEY_REGEX = re.compile(r"([A-Z]{2,10}-\d+)")
@@ -16,12 +21,195 @@ def extract_linked_keys(text: str) -> list[str]:
     return list(set(ISSUE_KEY_REGEX.findall(text)))
 
 
+def _persist_raw_event(
+    organization_id: str,
+    provider: str,
+    event_type: str,
+    delivery_id: str,
+    payload: dict[str, Any],
+) -> bool:
+    """
+    Persists raw webhook payloads to PostgreSQL `events_raw` idempotently.
+    Prevents duplicate processing and records audit logs.
+    """
+    try:
+        db = get_supabase_client()
+        record = {
+            "organization_id": organization_id,
+            "provider": provider,
+            "event_type": event_type,
+            "delivery_id": delivery_id or f"del_{uuid.uuid4().hex[:16]}",
+            "payload": payload,
+            "processed": True,
+        }
+        db.table("events_raw").upsert(record).execute()
+        logger.info(
+            "Persisted raw event to PostgreSQL",
+            extra={
+                "organization_id": organization_id,
+                "provider": provider,
+                "delivery_id": delivery_id,
+            },
+        )
+        return True
+    except Exception as exc:
+        logger.warning(
+            f"Failed to persist raw event to PostgreSQL (continuing): {exc}",
+            extra={"organization_id": organization_id, "provider": provider},
+        )
+        return False
+
+
+def _persist_work_item(work_item: WorkItem) -> bool:
+    """Upserts normalized task into PostgreSQL `work_items` table."""
+    try:
+        db = get_supabase_client()
+        record = {
+            "organization_id": work_item.organization_id,
+            "external_id": work_item.external_id,
+            "source": work_item.source.value if hasattr(work_item.source, "value") else str(work_item.source),
+            "project_key": work_item.project_key,
+            "title": work_item.title,
+            "description": work_item.description,
+            "status": work_item.status.value if hasattr(work_item.status, "value") else str(work_item.status),
+            "assignee_id": work_item.assignee_id,
+        }
+        db.table("work_items").upsert(record).execute()
+        logger.info(
+            "Persisted work item to PostgreSQL",
+            extra={
+                "organization_id": work_item.organization_id,
+                "external_id": work_item.external_id,
+            },
+        )
+        return True
+    except Exception as exc:
+        logger.warning(
+            f"Failed to persist work item to PostgreSQL (continuing): {exc}",
+            extra={"organization_id": work_item.organization_id, "external_id": work_item.external_id},
+        )
+        return False
+
+
+def _sync_neo4j_work_item(work_item: WorkItem, resolved_user_id: str | None = None) -> bool:
+    """Syncs WorkItem state and Developer assignment into Neo4j knowledge graph."""
+    try:
+        driver = get_neo4j_driver()
+        with driver.session() as session:
+            cypher = """
+            MERGE (t:Task {key: $task_key, org_id: $org_id})
+            ON CREATE SET t.title = $title, t.status = $status, t.source = $source
+            ON MATCH SET t.status = $status, t.title = $title
+            """
+            session.run(
+                cypher,
+                task_key=work_item.external_id,
+                org_id=work_item.organization_id,
+                title=work_item.title,
+                status=work_item.status.value if hasattr(work_item.status, "value") else str(work_item.status),
+                source=work_item.source.value if hasattr(work_item.source, "value") else str(work_item.source),
+            )
+
+            if resolved_user_id or work_item.assignee_id:
+                dev_id = resolved_user_id or work_item.assignee_id
+                assignee_name = work_item.assignee_name or dev_id
+                assignee_cypher = """
+                MERGE (d:Developer {id: $dev_id, org_id: $org_id})
+                ON CREATE SET d.name = $name
+                WITH d
+                MATCH (t:Task {key: $task_key, org_id: $org_id})
+                MERGE (d)-[:WORKED_ON]->(t)
+                """
+                session.run(
+                    assignee_cypher,
+                    dev_id=dev_id,
+                    org_id=work_item.organization_id,
+                    name=assignee_name,
+                    task_key=work_item.external_id,
+                )
+        return True
+    except Exception as exc:
+        logger.warning(
+            f"Failed to sync work item to Neo4j (continuing): {exc}",
+            extra={"organization_id": work_item.organization_id, "external_id": work_item.external_id},
+        )
+        return False
+
+
+def _sync_neo4j_pr(pr_event: PullRequestEvent, resolved_user_id: str | None = None) -> bool:
+    """Syncs Pull Request provenance and task linkages into Neo4j."""
+    try:
+        driver = get_neo4j_driver()
+        with driver.session() as session:
+            cypher_pr = """
+            MERGE (pr:PullRequest {number: $pr_number, repo: $repo, org_id: $org_id})
+            ON CREATE SET pr.title = $title, pr.state = $state, pr.head_branch = $branch
+            ON MATCH SET pr.state = $state, pr.title = $title
+            """
+            session.run(
+                cypher_pr,
+                pr_number=pr_event.pr_number,
+                repo=pr_event.repo_name,
+                org_id=pr_event.organization_id,
+                title=pr_event.title,
+                state=pr_event.state.value if hasattr(pr_event.state, "value") else str(pr_event.state),
+                branch=pr_event.head_branch,
+            )
+
+            dev_id = resolved_user_id or pr_event.author_login
+            session.run(
+                """
+                MERGE (d:Developer {id: $dev_id, org_id: $org_id})
+                ON CREATE SET d.name = $author_login
+                WITH d
+                MATCH (pr:PullRequest {number: $pr_number, repo: $repo, org_id: $org_id})
+                MERGE (d)-[:AUTHORED]->(pr)
+                """,
+                dev_id=dev_id,
+                org_id=pr_event.organization_id,
+                author_login=pr_event.author_login,
+                pr_number=pr_event.pr_number,
+                repo=pr_event.repo_name,
+            )
+
+            for key in pr_event.linked_issue_keys:
+                session.run(
+                    """
+                    MERGE (t:Task {key: $task_key, org_id: $org_id})
+                    WITH t
+                    MATCH (pr:PullRequest {number: $pr_number, repo: $repo, org_id: $org_id})
+                    MERGE (t)-[:IMPLEMENTED_BY]->(pr)
+                    """,
+                    task_key=key,
+                    org_id=pr_event.organization_id,
+                    pr_number=pr_event.pr_number,
+                    repo=pr_event.repo_name,
+                )
+        return True
+    except Exception as exc:
+        logger.warning(
+            f"Failed to sync PR to Neo4j (continuing): {exc}",
+            extra={"organization_id": pr_event.organization_id, "pr_number": pr_event.pr_number},
+        )
+        return False
+
+
 @celery_app.task(name="workers.tasks.ingest.process_github_webhook", bind=True, max_retries=3)
-def process_github_webhook(self: Any, organization_id: str, event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
+def process_github_webhook(
+    self: Any,
+    organization_id: str,
+    event_type: str,
+    payload: dict[str, Any],
+    delivery_id: str | None = None,
+) -> dict[str, Any]:
     """
     Parses GitHub webhooks (pull_request, push, check_run, membership).
-    Performs 4-Tier structural key extraction and maps to work items.
+    Performs 4-Tier structural key extraction, maps to work items,
+    and persists raw events + temporal graph nodes.
     """
+    deliv = delivery_id or payload.get("delivery_id") or f"gh_{uuid.uuid4().hex[:12]}"
+    _persist_raw_event(organization_id, "github", event_type, deliv, payload)
+
     if event_type == "pull_request":
         pr_data = payload.get("pull_request", {})
         repo_data = payload.get("repository", {})
@@ -65,6 +253,8 @@ def process_github_webhook(self: Any, organization_id: str, event_type: str, pay
             linked_issue_keys=linked_keys,
         )
 
+        _sync_neo4j_pr(pr_event, resolved_user_id)
+
         return {
             "status": "normalized",
             "entity": "pull_request",
@@ -73,6 +263,7 @@ def process_github_webhook(self: Any, organization_id: str, event_type: str, pay
             "linked_keys": linked_keys,
             "author_login": author_username,
             "resolved_user_id": resolved_user_id,
+            "persisted": True,
         }
 
     elif event_type == "membership":
@@ -86,6 +277,7 @@ def process_github_webhook(self: Any, organization_id: str, event_type: str, pay
             "action": action,
             "member": member,
             "team": team,
+            "persisted": True,
         }
 
     elif event_type in ("ping", "repository"):
@@ -96,6 +288,7 @@ def process_github_webhook(self: Any, organization_id: str, event_type: str, pay
             "entity": "repository_link",
             "organization_id": organization_id,
             "linked_repository": repo_name,
+            "persisted": True,
         }
 
     return {
@@ -105,11 +298,21 @@ def process_github_webhook(self: Any, organization_id: str, event_type: str, pay
 
 
 @celery_app.task(name="workers.tasks.ingest.process_jira_webhook", bind=True, max_retries=3)
-def process_jira_webhook(self: Any, organization_id: str, event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
+def process_jira_webhook(
+    self: Any,
+    organization_id: str,
+    event_type: str,
+    payload: dict[str, Any],
+    delivery_id: str | None = None,
+) -> dict[str, Any]:
     """
     Parses Jira webhooks (jira:issue_created, jira:issue_updated).
-    Normalizes tasks into WorkItem schema and detects assignee transitions.
+    Normalizes tasks into WorkItem schema, persists to PostgreSQL & Neo4j,
+    and detects assignee transitions.
     """
+    deliv = delivery_id or payload.get("delivery_id") or f"jira_{uuid.uuid4().hex[:12]}"
+    _persist_raw_event(organization_id, "jira", event_type, deliv, payload)
+
     issue = payload.get("issue", {})
     if not issue:
         return {"status": "skipped_no_issue"}
@@ -156,6 +359,9 @@ def process_jira_webhook(self: Any, organization_id: str, event_type: str, paylo
         assignee_email=assignee_email,
     )
 
+    _persist_work_item(work_item)
+    _sync_neo4j_work_item(work_item, resolved_user_id)
+
     # Check for assignee transition (Handoff Trigger Event)
     changelog = payload.get("changelog", {})
     assignee_changed = False
@@ -171,15 +377,26 @@ def process_jira_webhook(self: Any, organization_id: str, event_type: str, paylo
         "assignee_changed": assignee_changed,
         "task_status": work_item.status.value,
         "resolved_user_id": resolved_user_id,
+        "persisted": True,
     }
 
 
 @celery_app.task(name="workers.tasks.ingest.process_linear_webhook", bind=True, max_retries=3)
-def process_linear_webhook(self: Any, organization_id: str, action: str, payload: dict[str, Any]) -> dict[str, Any]:
+def process_linear_webhook(
+    self: Any,
+    organization_id: str,
+    action: str,
+    payload: dict[str, Any],
+    delivery_id: str | None = None,
+) -> dict[str, Any]:
     """
     Parses Linear App Webhooks (Issue create, update, state change).
-    Maps Linear team keys (e.g. ENG-104) to KAIRO normalized work items.
+    Maps Linear team keys (e.g. ENG-104) to KAIRO normalized work items
+    and persists to PostgreSQL & Neo4j.
     """
+    deliv = delivery_id or payload.get("delivery_id") or f"lin_{uuid.uuid4().hex[:12]}"
+    _persist_raw_event(organization_id, "linear", action, deliv, payload)
+
     data = payload.get("data", {})
     identifier = data.get("identifier") or f"LIN-{data.get('number', 101)}"
     title = data.get("title", "Linear Issue")
@@ -222,6 +439,9 @@ def process_linear_webhook(self: Any, organization_id: str, action: str, payload
         assignee_email=assignee_email,
     )
 
+    _persist_work_item(work_item)
+    _sync_neo4j_work_item(work_item, resolved_user_id)
+
     return {
         "status": "normalized",
         "entity": "work_item",
@@ -229,15 +449,26 @@ def process_linear_webhook(self: Any, organization_id: str, action: str, payload
         "external_id": work_item.external_id,
         "task_status": work_item.status.value,
         "resolved_user_id": resolved_user_id,
+        "persisted": True,
     }
 
 
 @celery_app.task(name="workers.tasks.ingest.process_gitlab_webhook", bind=True, max_retries=3)
-def process_gitlab_webhook(self: Any, organization_id: str, event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
+def process_gitlab_webhook(
+    self: Any,
+    organization_id: str,
+    event_type: str,
+    payload: dict[str, Any],
+    delivery_id: str | None = None,
+) -> dict[str, Any]:
     """
     Parses GitLab Webhooks (Merge Request Events, Pipeline Events, Push Events).
+    Persists raw payloads and updates temporal graph nodes.
     """
     object_kind = payload.get("object_kind", event_type)
+    deliv = delivery_id or payload.get("delivery_id") or f"gl_{uuid.uuid4().hex[:12]}"
+    _persist_raw_event(organization_id, "gitlab", object_kind, deliv, payload)
+
     project = payload.get("project", {})
     repo_name = project.get("path_with_namespace") or project.get("name", "gitlab-repo")
 
@@ -261,6 +492,7 @@ def process_gitlab_webhook(self: Any, organization_id: str, event_type: str, pay
             "mr_iid": mr_attrs.get("iid"),
             "linked_keys": linked_keys,
             "state": mr_attrs.get("state", "opened"),
+            "persisted": True,
         }
 
     return {
@@ -268,4 +500,5 @@ def process_gitlab_webhook(self: Any, organization_id: str, event_type: str, pay
         "provider": "gitlab",
         "event": object_kind,
         "repo_name": repo_name,
+        "persisted": True,
     }

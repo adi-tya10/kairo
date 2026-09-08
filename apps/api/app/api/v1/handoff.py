@@ -1,15 +1,17 @@
-import jwt
-from apps.api.app.core.security import decode_access_token
+from apps.api.app.core.database import get_supabase_client
+from apps.api.app.core.logging import get_logger
+from apps.api.app.core.security import get_current_user
 from apps.api.app.engines.anomaly_rules import AnomalyEngine
 from apps.api.app.services.acl import PreRetrievalACL
 from apps.api.app.services.synthesis import GroundedSynthesisEngine
-from fastapi import APIRouter, Header, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from packages.schemas.github_event import CommitInfo, PullRequestEvent
 from packages.schemas.handoff import HandoffPackage
 from packages.schemas.permissions import UserPermissionProfile
 from packages.schemas.work_item import WorkItem
 from pydantic import BaseModel
 
+logger = get_logger("kairo.api.handoff")
 router = APIRouter(prefix="/handoff", tags=["Handoff"])
 
 
@@ -26,35 +28,42 @@ class HandoffGenerateRequest(BaseModel):
 @router.post("/generate", response_model=HandoffPackage, status_code=status.HTTP_200_OK)
 async def generate_handoff(
     request_body: HandoffGenerateRequest,
-    authorization: str = Header(..., alias="Authorization"),
+    current_user: UserPermissionProfile = Depends(get_current_user),
 ) -> HandoffPackage:
     """
-    Generates a verifiable Handoff Package with strict Pre-Retrieval ACL enforcement
-    and dynamic grounded evidence citations. Zero hardcoded entities.
+    Generates a verifiable Handoff Package with strict Pre-Retrieval ACL enforcement,
+    evaluates deterministic anomaly engine rules (HW-01..HW-05), and persists
+    the package to PostgreSQL `handoff_packages` table for historical auditability.
     """
-    token = authorization.replace("Bearer ", "").strip()
-    try:
-        payload = decode_access_token(token)
-    except jwt.PyJWTError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid authorization token: {e!s}",
-        ) from e
-
-    profile = UserPermissionProfile(
-        organization_id=payload.get("org_id", ""),
-        user_id=payload.get("sub", ""),
-        email=payload.get("email", ""),
-        allowed_repo_ids=payload.get("allowed_repos", []),
-        is_org_admin=payload.get("is_org_admin", False),
-    )
-
     # 1. Enforce Pre-Retrieval ACL Gate
-    PreRetrievalACL.validate_tenant_access(request_body.organization_id, profile.organization_id)
-    PreRetrievalACL.guard_repo_access(request_body.repo_id, profile)
+    PreRetrievalACL.validate_tenant_access(request_body.organization_id, current_user.organization_id)
+    PreRetrievalACL.guard_repo_access(request_body.repo_id, current_user)
 
     # 2. Evaluate Deterministic Anomaly Engine (HW-01..HW-05) Dynamically
     anomalies = []
+
+    # HW-01: Shadow work detection
+    if request_body.commits:
+        author_commits = [
+            {"sha": c.sha, "message": c.message, "author": c.author_name}
+            for c in request_body.commits
+        ]
+        hw01_result = AnomalyEngine.evaluate_hw01_shadow_work(
+            author_commits=author_commits,
+            linked_ticket_keys=[request_body.work_item.external_id],
+        )
+        if hw01_result.triggered:
+            anomalies.append(hw01_result)
+
+    # HW-02: Stalled PR detection
+    if request_body.pull_requests:
+        hw02_result = AnomalyEngine.evaluate_hw02_stalled_work(
+            pull_requests=request_body.pull_requests,
+        )
+        if hw02_result.triggered:
+            anomalies.append(hw02_result)
+
+    # HW-03: State mismatch
     if request_body.pull_requests:
         hw03_result = AnomalyEngine.evaluate_hw03_state_mismatch(
             request_body.work_item,
@@ -62,6 +71,20 @@ async def generate_handoff(
         )
         if hw03_result.triggered:
             anomalies.append(hw03_result)
+
+    # HW-05: Orphaned Dependency detection
+    try:
+        db = get_supabase_client()
+        perms_res = db.table("user_repo_permissions").select("repo_id, user_id").eq("organization_id", request_body.organization_id).execute()
+        repo_maintainers: dict[str, list[str]] = {}
+        for r in (perms_res.data or []):
+            repo_maintainers.setdefault(str(r.get("repo_id", "")), []).append(str(r.get("user_id", "")))
+        if repo_maintainers:
+            hw05_result = AnomalyEngine.evaluate_hw05_orphaned_dependency(repo_maintainers)
+            if hw05_result.triggered:
+                anomalies.append(hw05_result)
+    except Exception:
+        pass
 
     # 3. Generate Grounded Handoff Package with Citations
     package = GroundedSynthesisEngine.generate_handoff_package(
@@ -72,5 +95,31 @@ async def generate_handoff(
         outgoing_dev_name=request_body.outgoing_developer,
         incoming_dev_name=request_body.incoming_developer,
     )
+
+    # 4. Persist Handoff Package to PostgreSQL `handoff_packages` Table
+    try:
+        db = get_supabase_client()
+        briefing_dict = package.briefing.model_dump()
+        briefing_dict["repo_name"] = request_body.repo_id
+        db.table("handoff_packages").upsert({
+            "id": package.handoff_id,
+            "organization_id": package.organization_id,
+            "task_key": package.task_key,
+            "from_user_id": package.from_user_id,
+            "to_user_id": package.to_user_id,
+            "briefing": briefing_dict,
+            "anomalies": [a.model_dump() for a in package.anomalies],
+            "evidence_manifest": [e.model_dump() for e in package.evidence_manifest],
+            "status": "ACTIVE",
+        }).execute()
+        logger.info(
+            "Persisted handoff package to PostgreSQL",
+            extra={"organization_id": package.organization_id, "handoff_id": package.handoff_id},
+        )
+    except Exception as exc:
+        logger.warning(
+            f"Failed to persist handoff package to PostgreSQL (continuing): {exc}",
+            extra={"organization_id": package.organization_id, "handoff_id": package.handoff_id},
+        )
 
     return package

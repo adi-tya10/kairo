@@ -45,7 +45,7 @@ def test_github_webhook_authenticated():
         mock_send.assert_called_once()
 
 
-def test_github_webhook_unauthorized():
+def test_github_webhook_unauthorized_invalid_signature():
     payload = {"action": "opened"}
     raw_body = json.dumps(payload).encode("utf-8")
 
@@ -62,7 +62,24 @@ def test_github_webhook_unauthorized():
     assert response.status_code == 401
 
 
+def test_github_webhook_missing_signature():
+    payload = {"action": "opened"}
+    raw_body = json.dumps(payload).encode("utf-8")
+
+    response = client.post(
+        "/api/v1/webhooks/github",
+        content=raw_body,
+        headers={
+            "Content-Type": "application/json",
+            "X-GitHub-Event": "pull_request",
+            "X-GitHub-Delivery": "del_12345",
+        },
+    )
+    assert response.status_code == 401
+
+
 def test_jira_webhook_accepted():
+    settings = get_settings()
     payload = {
         "webhookEvent": "jira:issue_updated",
         "issue": {
@@ -75,6 +92,8 @@ def test_jira_webhook_accepted():
         "organization_id": "snapmeet",
     }
     raw_body = json.dumps(payload).encode("utf-8")
+    secret = settings.JIRA_WEBHOOK_SECRET.encode("utf-8")
+    sig = "sha256=" + hmac.new(secret, raw_body, hashlib.sha256).hexdigest()
 
     with patch("workers.celery_app.celery_app.send_task") as mock_send:
         response = client.post(
@@ -83,6 +102,7 @@ def test_jira_webhook_accepted():
             headers={
                 "Content-Type": "application/json",
                 "X-Atlassian-Webhook-Identifier": "jira_del_9988",
+                "X-Hub-Signature": sig,
             },
         )
         assert response.status_code == 202
@@ -92,7 +112,32 @@ def test_jira_webhook_accepted():
         mock_send.assert_called_once()
 
 
+def test_jira_webhook_missing_or_invalid_signature():
+    payload = {"webhookEvent": "jira:issue_updated"}
+    raw_body = json.dumps(payload).encode("utf-8")
+
+    # Missing signature
+    resp_missing = client.post(
+        "/api/v1/webhooks/jira/snapmeet",
+        content=raw_body,
+        headers={"Content-Type": "application/json"},
+    )
+    assert resp_missing.status_code == 401
+
+    # Invalid signature
+    resp_invalid = client.post(
+        "/api/v1/webhooks/jira/snapmeet",
+        content=raw_body,
+        headers={
+            "Content-Type": "application/json",
+            "X-Hub-Signature": "sha256=invalid_jira_sig",
+        },
+    )
+    assert resp_invalid.status_code == 401
+
+
 def test_linear_webhook_accepted():
+    settings = get_settings()
     payload = {
         "action": "create",
         "data": {
@@ -102,17 +147,50 @@ def test_linear_webhook_accepted():
             "assignee": {"name": "Rahul Sharma", "email": "rahul@snapmeet.com"},
         },
     }
+    raw_body = json.dumps(payload).encode("utf-8")
+    secret = settings.LINEAR_WEBHOOK_SECRET.encode("utf-8")
+    sig = hmac.new(secret, raw_body, hashlib.sha256).hexdigest()
+
     with patch("workers.celery_app.celery_app.send_task") as mock_send:
         response = client.post(
             "/api/v1/webhooks/linear/snapmeet",
-            json=payload,
-            headers={"Linear-Event": "Issue", "Linear-Delivery": "del_lin_1"},
+            content=raw_body,
+            headers={
+                "Content-Type": "application/json",
+                "Linear-Event": "Issue",
+                "Linear-Delivery": "del_lin_1",
+                "Linear-Signature": sig,
+            },
         )
         assert response.status_code == 202
         data = response.json()
         assert data["status"] == "accepted"
         assert data["provider"] == "linear"
         mock_send.assert_called_once()
+
+
+def test_linear_webhook_missing_or_invalid_signature():
+    payload = {"action": "create"}
+    raw_body = json.dumps(payload).encode("utf-8")
+
+    # Missing
+    resp_missing = client.post(
+        "/api/v1/webhooks/linear/snapmeet",
+        content=raw_body,
+        headers={"Content-Type": "application/json"},
+    )
+    assert resp_missing.status_code == 401
+
+    # Invalid
+    resp_invalid = client.post(
+        "/api/v1/webhooks/linear/snapmeet",
+        content=raw_body,
+        headers={
+            "Content-Type": "application/json",
+            "Linear-Signature": "bad_linear_signature",
+        },
+    )
+    assert resp_invalid.status_code == 401
 
 
 def test_gitlab_webhook_accepted():
@@ -132,4 +210,3 @@ def test_gitlab_webhook_accepted():
         assert data["status"] == "accepted"
         assert data["provider"] == "gitlab"
         mock_send.assert_called_once()
-

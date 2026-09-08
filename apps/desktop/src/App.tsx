@@ -79,7 +79,7 @@ export const App: React.FC = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (!contextRes.ok) {
-        if (contextRes.status === 401 && token !== "kairo_demo_token_authenticated") {
+        if (contextRes.status === 401) {
           localStorage.removeItem(STORAGE_KEY_TOKEN);
           localStorage.removeItem(STORAGE_KEY_USER);
           localStorage.removeItem(STORAGE_KEY_ACTIVE);
@@ -163,9 +163,7 @@ export const App: React.FC = () => {
           activeHandoff = history.find((h: any) => h.repo_name === activeRepo) || history[0];
       }
 
-      const finalTaskKey =
-        detectedTask || activeHandoff?.task_key ||
-        idContext.organization_id.toUpperCase().slice(0, 4) + "-101";
+      const finalTaskKey = detectedTask || activeHandoff?.task_key || "";
 
       const newActiveContext: ActiveContext = {
         organization: idContext.organization_id,
@@ -354,77 +352,33 @@ export const App: React.FC = () => {
   };
 
   // 1-Click Dev / Demo Workspace
-  const handleDemoLogin = () => {
-    const demoToken = "kairo_demo_token_authenticated";
-    const demoId: UserIdentityContext = {
-      user_id: "usr_demo",
-      name: "Aditya",
-      email: "aditya@company.com",
-      organization_id: "snapmeet",
-      company_name: "SnapMeet Inc",
-      role: "Lead Engineer",
-      status: "ACTIVE",
-      teams: [{ id: "eng", name: "Core Infrastructure" }],
-      allowed_repos: ["snapmeet/billing-service", "snapmeet/auth-service"],
-      devices: [{ id: "dev_win", device_name: "Desktop-HUD-Client", platform: "windows", status: "ONLINE" }],
-      external_identities: [{ provider: "github", external_username: "adity" }],
-    };
-    const demoActive: ActiveContext = {
-      organization: "snapmeet",
-      repo: "billing-service",
-      branch: "feat/BILL-204-razorpay-retry",
-      taskKey: "BILL-204",
-      taskTitle: "Razorpay Webhook Retry & Anomaly Engine",
-      status: "ANOMALY_DETECTED",
-      outgoingDev: { name: "Rahul Sharma" },
-      incomingDev: { name: "Aditya" },
-      executiveSummary: "Commits on `billing-service` [PR #88] implement webhook retry logic. State mismatch [HW-03] flagged against Jira BILL-204.",
-      activeArtifacts: [
-        { id: "art_1", type: "BRANCH", title: "billing-service: feat/BILL-204-razorpay-retry", status: "HW-03 Flagged" },
-        { id: "art_2", type: "PR", title: "PR #88: Retry backoff algorithm", status: "Under Review" }
-      ],
-    };
-    const demoAnomalies: AnomalyAlert[] = [
-      {
-        id: "anom_1",
-        ruleId: "HW-03",
-        title: "State Mismatch (Jira vs PR)",
-        severity: "HIGH",
-        description: "Jira task BILL-204 marked 'IN_PROGRESS' while PR #88 was merged without QA verification tag.",
-        action: "Trigger automated verification run and update Jira status to RESOLVED.",
-      },
-      {
-        id: "anom_2",
-        ruleId: "HW-01",
-        title: "Shadow Work Detected",
-        severity: "MEDIUM",
-        description: "3 unlinked commits observed on branch `feat/BILL-204-razorpay-retry` missing Jira ticket prefix.",
-        action: "Link commit hashes to BILL-204 before merging to main.",
+  const handleDemoLogin = async () => {
+    setEmailInput("rahul@snapmeet.com");
+    setPasswordInput("RahulDev2026!");
+    setAuthError(null);
+    setAuthenticating(true);
+    try {
+      const res = await fetch(`${API_BASE}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: "rahul@snapmeet.com", password: "RahulDev2026!" }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAuthToken(data.access_token);
+        localStorage.setItem(STORAGE_KEY_TOKEN, data.access_token);
+        await loadUserContext(data.access_token);
+        setViewMode("icon");
+        resizeWindow(false);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setAuthError(err.detail || "Demo credentials authentication failed.");
       }
-    ];
-    const demoChecklist: ActionStep[] = [
-      { id: 1, title: "Resolve HW-03: State Mismatch", description: "Review PR #88 and update Jira ticket status", completed: false, targetFile: "billing/webhook.py" },
-      { id: 2, title: "Verify idempotency keys", description: "Confirm Redis cache TTL for webhook event deduplication", completed: true, targetFile: "billing/idempotency.py" },
-      { id: 3, title: "Audit dead-letter queue", description: "Run test payload against failed webhook queue", completed: false, targetFile: "workers/dlq.py" },
-    ];
-
-    setAuthToken(demoToken);
-    setUserContext(demoId);
-    setActiveContext(demoActive);
-    setAnomalies(demoAnomalies);
-    setChecklist(demoChecklist);
-    setReposList(["snapmeet/billing-service", "snapmeet/auth-service"]);
-    setSelectedRepo("snapmeet/billing-service");
-
-    localStorage.setItem(STORAGE_KEY_TOKEN, demoToken);
-    localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(demoId));
-    localStorage.setItem(STORAGE_KEY_ACTIVE, JSON.stringify(demoActive));
-    localStorage.setItem(STORAGE_KEY_ANOMALIES, JSON.stringify(demoAnomalies));
-    localStorage.setItem(STORAGE_KEY_CHECKLIST, JSON.stringify(demoChecklist));
-    localStorage.setItem(STORAGE_KEY_REPOS, JSON.stringify(["snapmeet/billing-service", "snapmeet/auth-service"]));
-
-    setViewMode("boxcard");
-    resizeWindow(true);
+    } catch {
+      setAuthError("Cannot reach KAIRO API. Ensure backend is running on port 8000.");
+    } finally {
+      setAuthenticating(false);
+    }
   };
 
   const handleLogout = () => {
