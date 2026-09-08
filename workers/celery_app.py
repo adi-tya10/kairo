@@ -1,6 +1,12 @@
 import os
+from pathlib import Path
 
 from celery import Celery
+from dotenv import load_dotenv
+
+ROOT_ENV = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(ROOT_ENV)
+load_dotenv()
 
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", REDIS_URL)
