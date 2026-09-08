@@ -29,6 +29,7 @@ def get_redis_client() -> redis.Redis:
     """
     Returns a configured, connection-pooled singleton Redis client instance.
     Shared across API replicas for distributed rate limiting and caching.
+    Supports TLS (rediss://) and enforces socket connection timeouts.
     """
     global _redis_client
     if _redis_client is not None:
@@ -39,9 +40,22 @@ def get_redis_client() -> redis.Redis:
         settings.REDIS_URL,
         max_connections=50,
         decode_responses=True,
+        socket_connect_timeout=5.0,
+        socket_timeout=5.0,
     )
     _redis_client = redis.Redis(connection_pool=pool)
     return _redis_client
+
+
+def reset_redis_client() -> None:
+    """Resets the singleton Redis client instance (used for testing and clean shutdown)."""
+    global _redis_client
+    if _redis_client is not None:
+        try:
+            _redis_client.close()
+        except Exception:
+            pass
+        _redis_client = None
 
 
 async def check_redis_health(timeout: float = 5.0) -> bool:

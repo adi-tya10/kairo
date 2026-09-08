@@ -32,6 +32,8 @@ celery_app.conf.update(
     task_acks_late=True,
     task_reject_on_worker_lost=True,
     broker_connection_retry_on_startup=True,
+    result_expires=86400,  # 24 hours TTL: prevents unbounded Redis RAM growth
+    broker_transport_options={"visibility_timeout": 43200},  # 12 hours for long jobs
     task_routes={
         "workers.tasks.ingest.*": {"queue": "ingest"},
         "workers.tasks.embeddings.*": {"queue": "embeddings"},
