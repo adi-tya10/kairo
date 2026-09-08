@@ -5,8 +5,13 @@ description = "FastAPI Backend & Deterministic Knowledge Engine for KAIRO"
 requires-python = ">=3.11"
 
 [tool.ruff]
-line-length = 100
+line-length = 120
 target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]
+
 
 [tool.mypy]
 python_version = "3.11"
