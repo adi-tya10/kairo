@@ -41,7 +41,9 @@ class Settings(BaseSettings):
                 except Exception:
                     pass
             return [origin.strip() for origin in trimmed.split(",") if origin.strip()]
-        return v
+        if isinstance(v, list):
+            return [str(item).strip() for item in v if str(item).strip()]
+        return []
 
     # Supabase / PostgreSQL
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/kairo"
