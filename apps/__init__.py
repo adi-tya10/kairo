@@ -1,0 +1,3 @@
+"""
+KAIRO Applications Root.
+"""

@@ -1,0 +1,20 @@
+[project]
+name = "kairo-api"
+version = "0.1.0"
+description = "FastAPI Backend & Deterministic Knowledge Engine for KAIRO"
+requires-python = ">=3.11"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "--cov=app --cov=workers --cov-report=term-missing --cov-fail-under=85"
+

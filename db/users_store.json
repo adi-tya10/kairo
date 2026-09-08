@@ -1,0 +1,16 @@
+{
+  "priya@snapmeet.com": {
+    "user_id": "usr_7e4e9e46",
+    "email": "priya@snapmeet.com",
+    "name": "Priya Patel",
+    "organization_id": "snapmeet",
+    "company_name": "Snapmeet",
+    "password_hash": "aea6756c8af53573c3e4372d1351f6e2:206e8127eb191531318c21be1a64440a0f71fcb8273dfd1454e765457a5ad99d",
+    "is_org_admin": false,
+    "role": "DEVELOPER",
+    "allowed_repos": [
+      "snapmeet/billing-service"
+    ],
+    "status": "ACTIVE"
+  }
+}

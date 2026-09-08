@@ -1,0 +1,461 @@
+{
+  "admin@snapmeet.com": {
+    "user_id": "usr_snapmeet_admin",
+    "email": "admin@snapmeet.com",
+    "name": "SnapMeet Admin",
+    "organization_id": "snapmeet",
+    "company_name": "SnapMeet Inc.",
+    "password_hash": "75bd3ba23de141404d09804a83e71cdc:a43fc2d7a8ad5a584ffbe4742a6e30743e41b7f0d9711cb73a0a6e47a01a8f6e",
+    "is_org_admin": true,
+    "allowed_repos": [
+      "snapmeet/billing-service",
+      "snapmeet/auth-service",
+      "snapmeet/video-transcoder"
+    ]
+  },
+  "rahul@snapmeet.com": {
+    "user_id": "usr_rahul",
+    "email": "rahul@snapmeet.com",
+    "name": "Rahul Sharma",
+    "organization_id": "snapmeet",
+    "company_name": "SnapMeet Inc.",
+    "password_hash": "2d92a61c5afd2d6cbb7b8420dce16d1c:ce4d1cd6c98f6f85e4b973b5ea9173774f28502b7ad36645e0216ccadc12e59e",
+    "is_org_admin": false,
+    "allowed_repos": [
+      "snapmeet/billing-service",
+      "snapmeet/auth-service"
+    ]
+  },
+  "aman@snapmeet.com": {
+    "user_id": "usr_aman",
+    "email": "aman@snapmeet.com",
+    "name": "Aman Verma",
+    "organization_id": "snapmeet",
+    "company_name": "SnapMeet Inc.",
+    "password_hash": "3043870e1176d442b113329c7ea76f91:27ba9a32937d833af68bffda1808214a797b11f2445299cb3f7bf21e04d467e6",
+    "is_org_admin": false,
+    "allowed_repos": [
+      "snapmeet/billing-service"
+    ]
+  },
+  "admin@acmecorp.io": {
+    "user_id": "usr_acme-corp_admin",
+    "email": "admin@acmecorp.io",
+    "name": "Acme Corp Admin",
+    "organization_id": "acme-corp",
+    "company_name": "Acme Corp",
+    "password_hash": "2bf752a73a8dd59df3e40a0e97d2c56f:c26cff8b6e9cbc250ab88f2408ef18a79abd8285c1a44319ab28f3760dd3d8c3",
+    "is_org_admin": true,
+    "allowed_repos": [
+      "acme-corp/primary-repo"
+    ]
+  },
+  "admin_45599684@acmecorp.io": {
+    "user_id": "usr_acme-corp-45599684_admin",
+    "email": "admin_45599684@acmecorp.io",
+    "name": "Acme Corp 45599684 Admin",
+    "organization_id": "acme-corp-45599684",
+    "company_name": "Acme Corp 45599684",
+    "password_hash": "38fbffbeaeaa664f51476d18b3106705:7672c8c7a1f424d795e8524f642db4e674f1e5ff8cea7bda92f9252e076b924d",
+    "is_org_admin": true,
+    "allowed_repos": [
+      "acme-corp-45599684/primary-repo"
+    ]
+  },
+  "adityaeeshan5230@gmail.com": {
+    "user_id": "usr_kairo_admin",
+    "email": "adityaeeshan5230@gmail.com",
+    "name": "Kairo Admin",
+    "organization_id": "kairo",
+    "company_name": "Kairo",
+    "password_hash": "980972d79bef99842925a8d6ba69690c:052f892293ecb276c137ff4331502fd1fa931d8311751d89e8278701dfe45abb",
+    "is_org_admin": true,
+    "allowed_repos": [
+      "kairo/primary-repo"
+    ]
+  },
+  "admin_bf1d74ad@acmecorp.io": {
+    "user_id": "usr_acme-corp-bf1d74ad_admin",
+    "email": "admin_bf1d74ad@acmecorp.io",
+    "name": "Acme Corp bf1d74ad Admin",
+    "organization_id": "acme-corp-bf1d74ad",
+    "company_name": "Acme Corp bf1d74ad",
+    "password_hash": "0518cb3db1b5c026a87d0e092b43bc16:a59d11337d63f6283975d0b24743e741af70bceb1b00fb073b723d80a63353a5",
+    "is_org_admin": true,
+    "allowed_repos": [
+      "acme-corp-bf1d74ad/primary-repo"
+    ]
+  },
+  "admin_44f9d56e@acmecorp.io": {
+    "user_id": "usr_acme-corp-44f9d56e_admin",
+    "email": "admin_44f9d56e@acmecorp.io",
+    "name": "Acme Corp 44f9d56e Admin",
+    "organization_id": "acme-corp-44f9d56e",
+    "company_name": "Acme Corp 44f9d56e",
+    "password_hash": "b01b8d8ac1c00c1cf2d8d53f0563f3c9:b06f79d4b15a47d3e6050398ee99f50bc76c2c3731a6de3deb370c2b36628f47",
+    "is_org_admin": true,
+    "allowed_repos": [
+      "acme-corp-44f9d56e/primary-repo"
+    ]
+  },
+  "admin_e858fc2d@acmecorp.io": {
+    "user_id": "usr_acme-corp-e858fc2d_admin",
+    "email": "admin_e858fc2d@acmecorp.io",
+    "name": "Acme Corp e858fc2d Admin",
+    "organization_id": "acme-corp-e858fc2d",
+    "company_name": "Acme Corp e858fc2d",
+    "password_hash": "d30bf4d889f5977c52e97deeebb4c9d5:18bfb5c4f64137903ab612d59c9b8d0a547fefe162a5c0d4dbcdec38c926496a",
+    "is_org_admin": true,
+    "allowed_repos": [
+      "acme-corp-e858fc2d/primary-repo"
+    ]
+  },
+  "admin_716fa60e@acmecorp.io": {
+    "user_id": "usr_acme-corp-716fa60e_admin",
+    "email": "admin_716fa60e@acmecorp.io",
+    "name": "Acme Corp 716fa60e Admin",
+    "organization_id": "acme-corp-716fa60e",
+    "company_name": "Acme Corp 716fa60e",
+    "password_hash": "76ce25788358897fe355acca06be9c1c:f391e5044ac16c615001c3531643dfcde2ac67586cda45c8d239bc4663397b4e",
+    "is_org_admin": true,
+    "allowed_repos": [
+      "acme-corp-716fa60e/primary-repo"
+    ]
+  },
+  "admin_9d6f8410@acmecorp.io": {
+    "user_id": "usr_acme-corp-9d6f8410_admin",
+    "email": "admin_9d6f8410@acmecorp.io",
+    "name": "Acme Corp 9d6f8410 Admin",
+    "organization_id": "acme-corp-9d6f8410",
+    "company_name": "Acme Corp 9d6f8410",
+    "password_hash": "21a7dfaf65d5fcf520f29137b5a2390b:64dcc9a3af30c5f10ac24291b36e6ae2db225c30a2aaa33a5e859be46b2054aa",
+    "is_org_admin": true,
+    "allowed_repos": [
+      "acme-corp-9d6f8410/primary-repo"
+    ]
+  },
+  "admin_7357ebc2@acmecorp.io": {
+    "user_id": "usr_acme-corp-7357ebc2_admin",
+    "email": "admin_7357ebc2@acmecorp.io",
+    "name": "Acme Corp 7357ebc2 Admin",
+    "organization_id": "acme-corp-7357ebc2",
+    "company_name": "Acme Corp 7357ebc2",
+    "password_hash": "3c94cda20fe7d3f22581036ae2f144e0:3ec51a21ffb081489e31f5fe685898fffdc743624bbb38f8bfe83afe190ec391",
+    "is_org_admin": true,
+    "allowed_repos": [
+      "acme-corp-7357ebc2/primary-repo"
+    ]
+  },
+  "admin_498d045c@acmecorp.io": {
+    "user_id": "usr_acme-corp-498d045c_admin",
+    "email": "admin_498d045c@acmecorp.io",
+    "name": "Acme Corp 498d045c Admin",
+    "organization_id": "acme-corp-498d045c",
+    "company_name": "Acme Corp 498d045c",
+    "password_hash": "7025ea0092fa6be9fc4aa3e942a8384a:d2b54695524860dc2e90cdd3eea7543da68eece77d07e8290ec8bb99b122962c",
+    "is_org_admin": true,
+    "allowed_repos": [
+      "acme-corp-498d045c/primary-repo"
+    ]
+  },
+  "admin_c698e806@acmecorp.io": {
+    "user_id": "usr_acme-corp-c698e806_admin",
+    "email": "admin_c698e806@acmecorp.io",
+    "name": "Acme Corp c698e806 Admin",
+    "organization_id": "acme-corp-c698e806",
+    "company_name": "Acme Corp c698e806",
+    "password_hash": "1733ec1fb81b4c52172e0a70e7dd9d1d:ce8a51376f67a37b5db9ba201db0eddec6a24bb39cc9978261fb5507b49977e3",
+    "is_org_admin": true,
+    "allowed_repos": [
+      "acme-corp-c698e806/primary-repo"
+    ]
+  },
+  "admin_9161ec55@acmecorp.io": {
+    "user_id": "usr_acme-corp-9161ec55_admin",
+    "email": "admin_9161ec55@acmecorp.io",
+    "name": "Acme Corp 9161ec55 Admin",
+    "organization_id": "acme-corp-9161ec55",
+    "company_name": "Acme Corp 9161ec55",
+    "password_hash": "d4f1266090f47d95563c9759a98bf2b7:eec95d3d3c38e8e9b3abbb5d4584b0729f99dd5c5568494a15b97135dbb77789",
+    "is_org_admin": true,
+    "allowed_repos": [
+      "acme-corp-9161ec55/primary-repo"
+    ]
+  },
+  "admin_84df871d@acmecorp.io": {
+    "user_id": "usr_acme-corp-84df871d_admin",
+    "email": "admin_84df871d@acmecorp.io",
+    "name": "Acme Corp 84df871d Admin",
+    "organization_id": "acme-corp-84df871d",
+    "company_name": "Acme Corp 84df871d",
+    "password_hash": "536f07e665e6aee7a38fe716ec5229f9:f099d2b762e7e64d47e585267203eeb2ac8f815fa2af60018bbf1477f3286822",
+    "is_org_admin": true,
+    "allowed_repos": [
+      "acme-corp-84df871d/primary-repo"
+    ]
+  },
+  "admin_9fd652f5@acmecorp.io": {
+    "user_id": "usr_acme-corp-9fd652f5_admin",
+    "email": "admin_9fd652f5@acmecorp.io",
+    "name": "Acme Corp 9fd652f5 Admin",
+    "organization_id": "acme-corp-9fd652f5",
+    "company_name": "Acme Corp 9fd652f5",
+    "password_hash": "a604da69f9e4acfd38c331c13476fdbb:566786ae7705d050e59ce6fa4c5bcde99edcca955963020c566281779ef4b838",
+    "is_org_admin": true,
+    "allowed_repos": [
+      "acme-corp-9fd652f5/primary-repo"
+    ]
+  },
+  "admin_4934e932@acmecorp.io": {
+    "user_id": "usr_acme-corp-4934e932_admin",
+    "email": "admin_4934e932@acmecorp.io",
+    "name": "Acme Corp 4934e932 Admin",
+    "organization_id": "acme-corp-4934e932",
+    "company_name": "Acme Corp 4934e932",
+    "password_hash": "09214868810e0a3cb975d2baee709516:b68446ec3a7f82d6b1c9a1ee48cb927dc802d288f2be154d04b58c7d7fedff8a",
+    "is_org_admin": true,
+    "allowed_repos": [
+      "acme-corp-4934e932/primary-repo"
+    ]
+  },
+  "admin_456ce03a@acmecorp.io": {
+    "user_id": "usr_acme-corp-456ce03a_admin",
+    "email": "admin_456ce03a@acmecorp.io",
+    "name": "Acme Corp 456ce03a Admin",
+    "organization_id": "acme-corp-456ce03a",
+    "company_name": "Acme Corp 456ce03a",
+    "password_hash": "8232627afb2ca82c40021214aee9c600:d887b1ad182edbdf379f8aa2d53b15c82f207889f6cd35c43a2adfbd0de76527",
+    "is_org_admin": true,
+    "allowed_repos": [
+      "acme-corp-456ce03a/primary-repo"
+    ]
+  },
+  "admin_60fa14f9@acmecorp.io": {
+    "user_id": "usr_acme-corp-60fa14f9_admin",
+    "email": "admin_60fa14f9@acmecorp.io",
+    "name": "Acme Corp 60fa14f9 Admin",
+    "organization_id": "acme-corp-60fa14f9",
+    "company_name": "Acme Corp 60fa14f9",
+    "password_hash": "17c56acfdab2b666c6b6036699671ecf:785e753bb5aeb1a335669b62658b713bc3c4b529f6ffdb5934217737474c5876",
+    "is_org_admin": true,
+    "allowed_repos": [
+      "acme-corp-60fa14f9/primary-repo"
+    ]
+  },
+  "admin_0ee1018c@acmecorp.io": {
+    "user_id": "usr_acme-corp-0ee1018c_admin",
+    "email": "admin_0ee1018c@acmecorp.io",
+    "name": "Acme Corp 0ee1018c Admin",
+    "organization_id": "acme-corp-0ee1018c",
+    "company_name": "Acme Corp 0ee1018c",
+    "password_hash": "83adafafce23e8e7cd809319d8ac8905:51a0d1ff400883e2357c88c255121f879dfdfef2b251efbf30d7601d71a39bed",
+    "is_org_admin": true,
+    "allowed_repos": [
+      "acme-corp-0ee1018c/primary-repo"
+    ]
+  },
+  "admin_0a64bb0a@acmecorp.io": {
+    "user_id": "usr_acme-corp-0a64bb0a_admin",
+    "email": "admin_0a64bb0a@acmecorp.io",
+    "name": "Acme Corp 0a64bb0a Admin",
+    "organization_id": "acme-corp-0a64bb0a",
+    "company_name": "Acme Corp 0a64bb0a",
+    "password_hash": "8d73237fd2b6b56b6f1cb13303ee4e51:5620783486bcd53d23fad25da0821dad10439086dc6313533ab95273fd6d6d9a",
+    "is_org_admin": true,
+    "allowed_repos": [
+      "acme-corp-0a64bb0a/primary-repo"
+    ]
+  },
+  "admin_a1819f4f@acmecorp.io": {
+    "user_id": "usr_acme-corp-a1819f4f_admin",
+    "email": "admin_a1819f4f@acmecorp.io",
+    "name": "Acme Corp a1819f4f Admin",
+    "organization_id": "acme-corp-a1819f4f",
+    "company_name": "Acme Corp a1819f4f",
+    "password_hash": "0b948a2cfe9a7cc72c43554c05930237:2fe6272e35e3bc75fac817b684fd66221252520e017de4e77ee5e32a87441558",
+    "is_org_admin": true,
+    "allowed_repos": [
+      "acme-corp-a1819f4f/primary-repo"
+    ]
+  },
+  "admin_9d78aca5@acmecorp.io": {
+    "user_id": "usr_acme-corp-9d78aca5_admin",
+    "email": "admin_9d78aca5@acmecorp.io",
+    "name": "Acme Corp 9d78aca5 Admin",
+    "organization_id": "acme-corp-9d78aca5",
+    "company_name": "Acme Corp 9d78aca5",
+    "password_hash": "3a6c595272a04e2efa78715d8edd518e:03994f31bf3c808f7310048dd9d97c772d844ddfb6a7aa98f1a61bd2bb946047",
+    "is_org_admin": true,
+    "allowed_repos": [
+      "acme-corp-9d78aca5/primary-repo"
+    ]
+  },
+  "admin_d2a56845@acmecorp.io": {
+    "user_id": "usr_acme-corp-d2a56845_admin",
+    "email": "admin_d2a56845@acmecorp.io",
+    "name": "Acme Corp d2a56845 Admin",
+    "organization_id": "acme-corp-d2a56845",
+    "company_name": "Acme Corp d2a56845",
+    "password_hash": "378bd0dc1fc25437e352f6443f228f86:28dfdfd8d08b32304aecd963e95f452c08953825f3ac56657f268564815c6b14",
+    "is_org_admin": true,
+    "allowed_repos": [
+      "acme-corp-d2a56845/primary-repo"
+    ]
+  },
+  "admin_46a9e2cd@acmecorp.io": {
+    "user_id": "usr_acme-corp-46a9e2cd_admin",
+    "email": "admin_46a9e2cd@acmecorp.io",
+    "name": "Acme Corp 46a9e2cd Admin",
+    "organization_id": "acme-corp-46a9e2cd",
+    "company_name": "Acme Corp 46a9e2cd",
+    "password_hash": "ae9425310aef1a560235226c6015bd7a:796727d33982b31fa02fb8981d9a3831cb24f01a25564764be295f2eaacece17",
+    "is_org_admin": true,
+    "allowed_repos": [
+      "acme-corp-46a9e2cd/primary-repo"
+    ]
+  },
+  "admin_4d920e67@acmecorp.io": {
+    "user_id": "usr_acme-corp-4d920e67_admin",
+    "email": "admin_4d920e67@acmecorp.io",
+    "name": "Acme Corp 4d920e67 Admin",
+    "organization_id": "acme-corp-4d920e67",
+    "company_name": "Acme Corp 4d920e67",
+    "password_hash": "e8ef2a0bb25f3c64403759fe7c0640c9:132dfe2d2788831b6ef9dbb3288d667edf8f8c7d01b49b31fb74e8ba01978529",
+    "is_org_admin": true,
+    "allowed_repos": [
+      "acme-corp-4d920e67/primary-repo"
+    ]
+  },
+  "admin_9c2184c8@acmecorp.io": {
+    "user_id": "usr_acme-corp-9c2184c8_admin",
+    "email": "admin_9c2184c8@acmecorp.io",
+    "name": "Acme Corp 9c2184c8 Admin",
+    "organization_id": "acme-corp-9c2184c8",
+    "company_name": "Acme Corp 9c2184c8",
+    "password_hash": "49634f0802887d9c89e8d71c727d5317:ecbc69f8bdd1f8169dbf0c887157ebb13dedc63cb6fdbcbe646454398e59b022",
+    "is_org_admin": true,
+    "allowed_repos": [
+      "acme-corp-9c2184c8/primary-repo"
+    ]
+  },
+  "admin_8d5f3207@acmecorp.io": {
+    "user_id": "usr_acme-corp-8d5f3207_admin",
+    "email": "admin_8d5f3207@acmecorp.io",
+    "name": "Acme Corp 8d5f3207 Admin",
+    "organization_id": "acme-corp-8d5f3207",
+    "company_name": "Acme Corp 8d5f3207",
+    "password_hash": "6cddf73bca9f08a7ceece55640135cba:8811710a2053b53d5299af2a2c2dab2c0d35f258b7d22f86dc3798d49a6070d9",
+    "is_org_admin": true,
+    "allowed_repos": [
+      "acme-corp-8d5f3207/primary-repo"
+    ]
+  },
+  "admin_0fc7c394@acmecorp.io": {
+    "user_id": "usr_acme-corp-0fc7c394_admin",
+    "email": "admin_0fc7c394@acmecorp.io",
+    "name": "Acme Corp 0fc7c394 Admin",
+    "organization_id": "acme-corp-0fc7c394",
+    "company_name": "Acme Corp 0fc7c394",
+    "password_hash": "49fe18b70b81f9f5b411488d11900de9:10b1e08aaa15672df77e990a16e84e759a0af12b1792f8c915e385daaaa64a4e",
+    "is_org_admin": true,
+    "allowed_repos": [
+      "acme-corp-0fc7c394/primary-repo"
+    ]
+  },
+  "admin_d8ea6ac9@acmecorp.io": {
+    "user_id": "usr_acme-corp-d8ea6ac9_admin",
+    "email": "admin_d8ea6ac9@acmecorp.io",
+    "name": "Acme Corp d8ea6ac9 Admin",
+    "organization_id": "acme-corp-d8ea6ac9",
+    "company_name": "Acme Corp d8ea6ac9",
+    "password_hash": "2dee05c44f6dd02677899ba43bb28984:60580cd920eb81b601463421516bb55205b4c15c6f85a1a28f42119d89b0eb0c",
+    "is_org_admin": true,
+    "allowed_repos": [
+      "acme-corp-d8ea6ac9/primary-repo"
+    ]
+  },
+  "admin_aeeebf01@acmecorp.io": {
+    "user_id": "usr_acme-corp-aeeebf01_admin",
+    "email": "admin_aeeebf01@acmecorp.io",
+    "name": "Acme Corp aeeebf01 Admin",
+    "organization_id": "acme-corp-aeeebf01",
+    "company_name": "Acme Corp aeeebf01",
+    "password_hash": "aa599b1d812e93f09376a59eeb544861:37b9e1d0c6be1dc5532f630215b16220a7a774e65b67ab2331c2d611a668c073",
+    "is_org_admin": true,
+    "allowed_repos": [
+      "acme-corp-aeeebf01/primary-repo"
+    ]
+  },
+  "admin_7da0cef5@acmecorp.io": {
+    "user_id": "usr_acme-corp-7da0cef5_admin",
+    "email": "admin_7da0cef5@acmecorp.io",
+    "name": "Acme Corp 7da0cef5 Admin",
+    "organization_id": "acme-corp-7da0cef5",
+    "company_name": "Acme Corp 7da0cef5",
+    "password_hash": "80c2c702ab3a4baba6a4e7be246bb3d3:59fc712f31f63d95c74c4febb3909b4aa80e5a37aa5a25e6492381a23fe520ad",
+    "is_org_admin": true,
+    "allowed_repos": [
+      "acme-corp-7da0cef5/primary-repo"
+    ]
+  },
+  "admin_e0334184@acmecorp.io": {
+    "user_id": "usr_acme-corp-e0334184_admin",
+    "email": "admin_e0334184@acmecorp.io",
+    "name": "Acme Corp e0334184 Admin",
+    "organization_id": "acme-corp-e0334184",
+    "company_name": "Acme Corp e0334184",
+    "password_hash": "aff4e8eb173964c3f57534dea5c89664:3d47f5972ef3162462800b5845d55825fa9680f0896fd1220082628c6867d8c3",
+    "is_org_admin": true,
+    "allowed_repos": [
+      "acme-corp-e0334184/primary-repo"
+    ]
+  },
+  "admin_ea6178d8@acmecorp.io": {
+    "user_id": "usr_acme-corp-ea6178d8_admin",
+    "email": "admin_ea6178d8@acmecorp.io",
+    "name": "Acme Corp ea6178d8 Admin",
+    "organization_id": "acme-corp-ea6178d8",
+    "company_name": "Acme Corp ea6178d8",
+    "password_hash": "c5fa185f1ce8bde1997c13ec5f018d86:90d36217a02dd8c5d7ec48daad2bd5935d67b2eca4d95cc0a4ed2248086be75a",
+    "is_org_admin": true,
+    "allowed_repos": [
+      "acme-corp-ea6178d8/primary-repo"
+    ]
+  },
+  "admin_08ed4948@acmecorp.io": {
+    "user_id": "usr_acme-corp-08ed4948_admin",
+    "email": "admin_08ed4948@acmecorp.io",
+    "name": "Acme Corp 08ed4948 Admin",
+    "organization_id": "acme-corp-08ed4948",
+    "company_name": "Acme Corp 08ed4948",
+    "password_hash": "3a78e79928c9172e3ba2a39eb811931f:78b85bfb37e6030eb866114492df855852056bec191c29b6a9adf071dedbff8f",
+    "is_org_admin": true,
+    "allowed_repos": [
+      "acme-corp-08ed4948/primary-repo"
+    ]
+  },
+  "admin_92771c94@acmecorp.io": {
+    "user_id": "usr_acme-corp-92771c94_admin",
+    "email": "admin_92771c94@acmecorp.io",
+    "name": "Acme Corp 92771c94 Admin",
+    "organization_id": "acme-corp-92771c94",
+    "company_name": "Acme Corp 92771c94",
+    "password_hash": "711ae5f5b0ad03f0d587447cc35e2fa2:e0d777f703f208613502f818cfec48845f34663342b32cd246dcec87ea4f0635",
+    "is_org_admin": true,
+    "allowed_repos": [
+      "acme-corp-92771c94/primary-repo"
+    ]
+  },
+  "admin_d62969e9@acmecorp.io": {
+    "user_id": "usr_acme-corp-d62969e9_admin",
+    "email": "admin_d62969e9@acmecorp.io",
+    "name": "Acme Corp d62969e9 Admin",
+    "organization_id": "acme-corp-d62969e9",
+    "company_name": "Acme Corp d62969e9",
+    "password_hash": "f8565466f75c406e68e48bac32576e05:a7a468cba83f822c5919cd2ece316422f17680ad85b22fefe6b346efffc27815",
+    "is_org_admin": true,
+    "allowed_repos": [
+      "acme-corp-d62969e9/primary-repo"
+    ]
+  }
+}

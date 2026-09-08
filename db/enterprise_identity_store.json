@@ -1,0 +1,509 @@
+{
+  "teams": {
+    "snapmeet": [
+      {
+        "id": "team_54a2b641",
+        "organization_id": "snapmeet",
+        "name": "Core Platform",
+        "description": "Infrastructure and billing pods",
+        "created_at": "2026-08-30T06:16:46.947234+00:00",
+        "updated_at": "2026-08-30T06:16:46.947264+00:00",
+        "member_count": 0
+      }
+    ],
+    "kairo": [
+      {
+        "id": "team_db15ae75",
+        "organization_id": "kairo",
+        "name": "Development",
+        "description": null,
+        "created_at": "2026-08-30T06:25:01.711765+00:00",
+        "updated_at": "2026-08-30T06:25:01.711802+00:00",
+        "member_count": 0
+      }
+    ]
+  },
+  "team_members": {
+    "snapmeet": [
+      {
+        "team_id": "team_54a2b641",
+        "user_id": "usr_rahul",
+        "created_at": "2026-08-30T06:16:46.976855+00:00"
+      }
+    ]
+  },
+  "invitations": {
+    "snapmeet": [
+      {
+        "id": "inv_11fe2d90",
+        "organization_id": "snapmeet",
+        "email": "priya@snapmeet.com",
+        "name": "Priya Patel",
+        "team_id": null,
+        "role": "DEVELOPER",
+        "allowed_repos": [
+          "snapmeet/billing-service"
+        ],
+        "token": "kairo_inv_jhxroQbVP_rw3ieoUg4g2qEbcjjDTa-6",
+        "status": "ACCEPTED",
+        "expires_at": "2026-09-06T06:16:47.014650+00:00",
+        "created_at": "2026-08-30T06:16:47.014686+00:00"
+      },
+      {
+        "id": "inv_148c4baf",
+        "organization_id": "snapmeet",
+        "email": "priya@snapmeet.com",
+        "name": "Priya Patel",
+        "team_id": null,
+        "role": "DEVELOPER",
+        "allowed_repos": [
+          "snapmeet/billing-service"
+        ],
+        "token": "kairo_inv_sFSvls_0DhwPI_rb-TiJJCPDGyIy2fgo",
+        "status": "ACCEPTED",
+        "expires_at": "2026-09-06T06:17:25.236894+00:00",
+        "created_at": "2026-08-30T06:17:25.236950+00:00"
+      },
+      {
+        "id": "inv_be7c826f",
+        "organization_id": "snapmeet",
+        "email": "priya@snapmeet.com",
+        "name": "Priya Patel",
+        "team_id": null,
+        "role": "DEVELOPER",
+        "allowed_repos": [
+          "snapmeet/billing-service"
+        ],
+        "token": "kairo_inv_Kub9cuVZK8rzo7ArbGBdTylO3t_SchPB",
+        "status": "ACCEPTED",
+        "expires_at": "2026-09-06T06:19:37.909891+00:00",
+        "created_at": "2026-08-30T06:19:37.909959+00:00"
+      },
+      {
+        "id": "inv_67e121fc",
+        "organization_id": "snapmeet",
+        "email": "priya@snapmeet.com",
+        "name": "Priya Patel",
+        "team_id": null,
+        "role": "DEVELOPER",
+        "allowed_repos": [
+          "snapmeet/billing-service"
+        ],
+        "token": "kairo_inv_TYEoOutLs3fx3uJiBrK8t99rWF5y668z",
+        "status": "ACCEPTED",
+        "expires_at": "2026-09-09T17:58:53.087365+00:00",
+        "created_at": "2026-09-02T17:58:53.087399+00:00"
+      },
+      {
+        "id": "inv_770b4192",
+        "organization_id": "snapmeet",
+        "email": "priya@snapmeet.com",
+        "name": "Priya Patel",
+        "team_id": null,
+        "role": "DEVELOPER",
+        "allowed_repos": [
+          "snapmeet/billing-service"
+        ],
+        "token": "kairo_inv_7xi9EUHWXbXMWxG2mKxf0riufV3WSJDr",
+        "status": "ACCEPTED",
+        "expires_at": "2026-09-09T17:59:13.846663+00:00",
+        "created_at": "2026-09-02T17:59:13.846695+00:00"
+      },
+      {
+        "id": "inv_a22c2a38",
+        "organization_id": "snapmeet",
+        "email": "priya@snapmeet.com",
+        "name": "Priya Patel",
+        "team_id": null,
+        "role": "DEVELOPER",
+        "allowed_repos": [
+          "snapmeet/billing-service"
+        ],
+        "token": "kairo_inv_TjXhupbLZY3Z_fbNqpWyrElQLVQn83sC",
+        "status": "ACCEPTED",
+        "expires_at": "2026-09-12T15:59:30.970696+00:00",
+        "created_at": "2026-09-05T15:59:30.970767+00:00"
+      },
+      {
+        "id": "inv_dc55ba6b",
+        "organization_id": "snapmeet",
+        "email": "priya@snapmeet.com",
+        "name": "Priya Patel",
+        "team_id": null,
+        "role": "DEVELOPER",
+        "allowed_repos": [
+          "snapmeet/billing-service"
+        ],
+        "token": "kairo_inv_qZlChkDj5mPnKxqA-GXcnoRxJoNh5SIu",
+        "status": "ACCEPTED",
+        "expires_at": "2026-09-12T15:59:50.887222+00:00",
+        "created_at": "2026-09-05T15:59:50.887244+00:00"
+      },
+      {
+        "id": "inv_fa0571a8",
+        "organization_id": "snapmeet",
+        "email": "priya@snapmeet.com",
+        "name": "Priya Patel",
+        "team_id": null,
+        "role": "DEVELOPER",
+        "allowed_repos": [
+          "snapmeet/billing-service"
+        ],
+        "token": "kairo_inv_5HQBQMp2UZ3_Nu9AN-3Dza4ghdcKeE4y",
+        "status": "ACCEPTED",
+        "expires_at": "2026-09-12T16:00:49.624654+00:00",
+        "created_at": "2026-09-05T16:00:49.624675+00:00"
+      },
+      {
+        "id": "inv_c9391bf4",
+        "organization_id": "snapmeet",
+        "email": "priya@snapmeet.com",
+        "name": "Priya Patel",
+        "team_id": null,
+        "role": "DEVELOPER",
+        "allowed_repos": [
+          "snapmeet/billing-service"
+        ],
+        "token": "kairo_inv_sYKnZEjwcI7BakvZe4uoRR7v-ul6Is0K",
+        "status": "ACCEPTED",
+        "expires_at": "2026-09-12T16:01:58.999510+00:00",
+        "created_at": "2026-09-05T16:01:58.999532+00:00"
+      },
+      {
+        "id": "inv_5c373757",
+        "organization_id": "snapmeet",
+        "email": "priya@snapmeet.com",
+        "name": "Priya Patel",
+        "team_id": null,
+        "role": "DEVELOPER",
+        "allowed_repos": [
+          "snapmeet/billing-service"
+        ],
+        "token": "kairo_inv_lfzjlzQDMRjC0cRevtW3vhb-jemtUY57",
+        "status": "ACCEPTED",
+        "expires_at": "2026-09-12T16:02:38.194372+00:00",
+        "created_at": "2026-09-05T16:02:38.194395+00:00"
+      },
+      {
+        "id": "inv_53661050",
+        "organization_id": "snapmeet",
+        "email": "priya@snapmeet.com",
+        "name": "Priya Patel",
+        "team_id": null,
+        "role": "DEVELOPER",
+        "allowed_repos": [
+          "snapmeet/billing-service"
+        ],
+        "token": "kairo_inv_e8w-AQt6BnxT0GWf-pI_p86-g2TbAhA8",
+        "status": "ACCEPTED",
+        "expires_at": "2026-09-12T16:03:16.933382+00:00",
+        "created_at": "2026-09-05T16:03:16.933413+00:00"
+      },
+      {
+        "id": "inv_2f4eee4b",
+        "organization_id": "snapmeet",
+        "email": "priya@snapmeet.com",
+        "name": "Priya Patel",
+        "team_id": null,
+        "role": "DEVELOPER",
+        "allowed_repos": [
+          "snapmeet/billing-service"
+        ],
+        "token": "kairo_inv_w3TVvTppiQjm7pzgRBwrdv6GG7-gFyYF",
+        "status": "ACCEPTED",
+        "expires_at": "2026-09-12T16:06:04.144396+00:00",
+        "created_at": "2026-09-05T16:06:04.144418+00:00"
+      },
+      {
+        "id": "inv_92e921f7",
+        "organization_id": "snapmeet",
+        "email": "priya@snapmeet.com",
+        "name": "Priya Patel",
+        "team_id": null,
+        "role": "DEVELOPER",
+        "allowed_repos": [
+          "snapmeet/billing-service"
+        ],
+        "token": "kairo_inv_5OwFErz35z4f4K7fsLEV_DsEgQxbK5lh",
+        "status": "ACCEPTED",
+        "expires_at": "2026-09-12T16:12:22.646425+00:00",
+        "created_at": "2026-09-05T16:12:22.646481+00:00"
+      },
+      {
+        "id": "inv_694c5ebd",
+        "organization_id": "snapmeet",
+        "email": "priya@snapmeet.com",
+        "name": "Priya Patel",
+        "team_id": null,
+        "role": "DEVELOPER",
+        "allowed_repos": [
+          "snapmeet/billing-service"
+        ],
+        "token": "kairo_inv_QgwN2pr2rQ3LUPhtW4eK7B_cyyNjAgzZ",
+        "status": "ACCEPTED",
+        "expires_at": "2026-09-12T16:13:03.635152+00:00",
+        "created_at": "2026-09-05T16:13:03.635177+00:00"
+      },
+      {
+        "id": "inv_fc380480",
+        "organization_id": "snapmeet",
+        "email": "priya@snapmeet.com",
+        "name": "Priya Patel",
+        "team_id": null,
+        "role": "DEVELOPER",
+        "allowed_repos": [
+          "snapmeet/billing-service"
+        ],
+        "token": "kairo_inv_8a-39TLUI00HnEct-FLjqEA3kQO8Wopa",
+        "status": "ACCEPTED",
+        "expires_at": "2026-09-12T16:32:01.617157+00:00",
+        "created_at": "2026-09-05T16:32:01.617176+00:00"
+      },
+      {
+        "id": "inv_a20db910",
+        "organization_id": "snapmeet",
+        "email": "priya@snapmeet.com",
+        "name": "Priya Patel",
+        "team_id": null,
+        "role": "DEVELOPER",
+        "allowed_repos": [
+          "snapmeet/billing-service"
+        ],
+        "token": "kairo_inv_KSJDtswhoLmM-0Iue4BNn9d1ABtTHke5",
+        "status": "ACCEPTED",
+        "expires_at": "2026-09-12T16:33:02.201389+00:00",
+        "created_at": "2026-09-05T16:33:02.201411+00:00"
+      },
+      {
+        "id": "inv_b19e62f5",
+        "organization_id": "snapmeet",
+        "email": "priya@snapmeet.com",
+        "name": "Priya Patel",
+        "team_id": null,
+        "role": "DEVELOPER",
+        "allowed_repos": [
+          "snapmeet/billing-service"
+        ],
+        "token": "kairo_inv_pQ007BovVEstJeM3Zon6OYG8KcNqZcgO",
+        "status": "ACCEPTED",
+        "expires_at": "2026-09-12T16:33:26.970320+00:00",
+        "created_at": "2026-09-05T16:33:26.970342+00:00"
+      },
+      {
+        "id": "inv_09d5ede2",
+        "organization_id": "snapmeet",
+        "email": "priya@snapmeet.com",
+        "name": "Priya Patel",
+        "team_id": null,
+        "role": "DEVELOPER",
+        "allowed_repos": [
+          "snapmeet/billing-service"
+        ],
+        "token": "kairo_inv_Mh-TyurRlO4Z2VexxJOCp6IbEd6fnWq-",
+        "status": "ACCEPTED",
+        "expires_at": "2026-09-12T16:34:15.496075+00:00",
+        "created_at": "2026-09-05T16:34:15.496098+00:00"
+      },
+      {
+        "id": "inv_84468f80",
+        "organization_id": "snapmeet",
+        "email": "priya@snapmeet.com",
+        "name": "Priya Patel",
+        "team_id": null,
+        "role": "DEVELOPER",
+        "allowed_repos": [
+          "snapmeet/billing-service"
+        ],
+        "token": "kairo_inv_3Ubu-BvjuN0R09wCcZkEqvpBVYIUHkAO",
+        "status": "ACCEPTED",
+        "expires_at": "2026-09-12T16:34:43.729575+00:00",
+        "created_at": "2026-09-05T16:34:43.729600+00:00"
+      },
+      {
+        "id": "inv_f4fae75c",
+        "organization_id": "snapmeet",
+        "email": "priya@snapmeet.com",
+        "name": "Priya Patel",
+        "team_id": null,
+        "role": "DEVELOPER",
+        "allowed_repos": [
+          "snapmeet/billing-service"
+        ],
+        "token": "kairo_inv_WTMGzHzsYx_dvH87kK0e8OfADjloHFSn",
+        "status": "ACCEPTED",
+        "expires_at": "2026-09-12T16:35:14.691122+00:00",
+        "created_at": "2026-09-05T16:35:14.691144+00:00"
+      },
+      {
+        "id": "inv_30791521",
+        "organization_id": "snapmeet",
+        "email": "priya@snapmeet.com",
+        "name": "Priya Patel",
+        "team_id": null,
+        "role": "DEVELOPER",
+        "allowed_repos": [
+          "snapmeet/billing-service"
+        ],
+        "token": "kairo_inv_-AjYjywKNjRN1Y63aevQRkl_KVExL81c",
+        "status": "ACCEPTED",
+        "expires_at": "2026-09-12T16:37:34.291940+00:00",
+        "created_at": "2026-09-05T16:37:34.291963+00:00"
+      },
+      {
+        "id": "inv_00591896",
+        "organization_id": "snapmeet",
+        "email": "priya@snapmeet.com",
+        "name": "Priya Patel",
+        "team_id": null,
+        "role": "DEVELOPER",
+        "allowed_repos": [
+          "snapmeet/billing-service"
+        ],
+        "token": "kairo_inv_3_bjYkw1CsyGQzEiBPYAoEfxvQOOQ1CY",
+        "status": "ACCEPTED",
+        "expires_at": "2026-09-12T16:41:22.792445+00:00",
+        "created_at": "2026-09-05T16:41:22.792468+00:00"
+      },
+      {
+        "id": "inv_201e6b4f",
+        "organization_id": "snapmeet",
+        "email": "priya@snapmeet.com",
+        "name": "Priya Patel",
+        "team_id": null,
+        "role": "DEVELOPER",
+        "allowed_repos": [
+          "snapmeet/billing-service"
+        ],
+        "token": "kairo_inv_WBz181QgOw4Wal9m0wyY8ZsXmNIV4EPE",
+        "status": "ACCEPTED",
+        "expires_at": "2026-09-12T17:16:30.377581+00:00",
+        "created_at": "2026-09-05T17:16:30.377601+00:00"
+      },
+      {
+        "id": "inv_1ed65c02",
+        "organization_id": "snapmeet",
+        "email": "priya@snapmeet.com",
+        "name": "Priya Patel",
+        "team_id": null,
+        "role": "DEVELOPER",
+        "allowed_repos": [
+          "snapmeet/billing-service"
+        ],
+        "token": "kairo_inv_Qwegk-Pb9Skh1aRGUULBqb6UloYcCVBL",
+        "status": "ACCEPTED",
+        "expires_at": "2026-09-12T17:20:26.867112+00:00",
+        "created_at": "2026-09-05T17:20:26.867135+00:00"
+      },
+      {
+        "id": "inv_9bfa2a0f",
+        "organization_id": "snapmeet",
+        "email": "priya@snapmeet.com",
+        "name": "Priya Patel",
+        "team_id": null,
+        "role": "DEVELOPER",
+        "allowed_repos": [
+          "snapmeet/billing-service"
+        ],
+        "token": "kairo_inv_qx5EW6tsJ7sE9JYPMnX9xzo8zOOKiXRh",
+        "status": "ACCEPTED",
+        "expires_at": "2026-09-12T17:24:20.243222+00:00",
+        "created_at": "2026-09-05T17:24:20.243244+00:00"
+      }
+    ],
+    "kairo": [
+      {
+        "id": "inv_4513ffc0",
+        "organization_id": "kairo",
+        "email": "adityaeeshan5230@gmail.com",
+        "name": "Aditya Raj",
+        "team_id": "team_db15ae75",
+        "role": "DEVELOPER",
+        "allowed_repos": [
+          "kairo/primary-repo"
+        ],
+        "token": "kairo_inv_Cn38awXcSGIxcPLrSVmJLE_OeTxdCyed",
+        "status": "PENDING",
+        "expires_at": "2026-09-06T06:31:28.795089+00:00",
+        "created_at": "2026-08-30T06:31:28.797418+00:00"
+      },
+      {
+        "id": "inv_154e94f3",
+        "organization_id": "kairo",
+        "email": "adityaraj171027@gmail.com",
+        "name": "SAhil",
+        "team_id": "team_db15ae75",
+        "role": "DEVELOPER",
+        "allowed_repos": [
+          "kairo/primary-repo"
+        ],
+        "token": "kairo_inv_Lg_6uw4XnxZ-zfzIy6aoa2YClx7BKq37",
+        "status": "PENDING",
+        "expires_at": "2026-09-06T06:32:20.873779+00:00",
+        "created_at": "2026-08-30T06:32:20.873831+00:00"
+      }
+    ]
+  },
+  "devices": {
+    "snapmeet": [
+      {
+        "id": "dev_0aaa2e7a",
+        "user_id": "usr_rahul",
+        "organization_id": "snapmeet",
+        "device_name": "Rahul-ThinkPad-T14",
+        "platform": "windows",
+        "app_version": "2.0.0",
+        "status": "REVOKED",
+        "last_seen_at": "2026-09-05T17:24:20.319179+00:00",
+        "created_at": "2026-08-30T06:16:47.156892+00:00"
+      },
+      {
+        "id": "dev_1778a41d",
+        "user_id": "usr_aman",
+        "organization_id": "snapmeet",
+        "device_name": "Desktop-HUD-Client",
+        "platform": "windows",
+        "app_version": "2.0.0",
+        "status": "ACTIVE",
+        "last_seen_at": "2026-09-02T18:16:18.875732+00:00",
+        "created_at": "2026-09-02T17:53:01.289547+00:00"
+      },
+      {
+        "id": "dev_1b7c97af",
+        "user_id": "usr_demo",
+        "organization_id": "snapmeet",
+        "device_name": "Desktop-HUD-Client",
+        "platform": "windows",
+        "app_version": "2.0.0",
+        "status": "ACTIVE",
+        "last_seen_at": "2026-09-07T20:59:56.382355+00:00",
+        "created_at": "2026-09-07T19:56:47.238115+00:00"
+      }
+    ]
+  },
+  "external_identities": {
+    "snapmeet": [
+      {
+        "id": "ext_1a06de37",
+        "user_id": "usr_rahul",
+        "organization_id": "snapmeet",
+        "provider": "github",
+        "external_user_id": "gh_89412",
+        "external_username": "rahul-dev",
+        "external_email": "rahul@snapmeet.com",
+        "verification_status": "VERIFIED",
+        "created_at": "2026-08-30T06:16:47.225260+00:00"
+      },
+      {
+        "id": "ext_bd7a1bc5",
+        "user_id": "usr_rahul",
+        "organization_id": "snapmeet",
+        "provider": "jira",
+        "external_user_id": "7120:38194",
+        "external_username": "Rahul Jira",
+        "external_email": "rahul@snapmeet.com",
+        "verification_status": "VERIFIED",
+        "created_at": "2026-08-30T06:16:47.250003+00:00"
+      }
+    ]
+  }
+}

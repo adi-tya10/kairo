@@ -1,0 +1,50 @@
+{
+  "scenario": "Rahul -> Aman Payment Platform Handover",
+  "organization_id": "snapmeet",
+  "outgoing_developer": {
+    "user_id": "usr_rahul",
+    "name": "Rahul Sharma",
+    "email": "rahul@snapmeet.com",
+    "role": "Senior Backend Engineer"
+  },
+  "incoming_developer": {
+    "user_id": "usr_aman",
+    "name": "Aman Verma",
+    "email": "aman@snapmeet.com",
+    "role": "Software Engineer"
+  },
+  "work_item": {
+    "id": "wi_BILL-204",
+    "external_id": "BILL-204",
+    "project_key": "BILL",
+    "title": "Razorpay Invoicing & Webhook Retry Queue",
+    "status": "DONE"
+  },
+  "pull_requests": [
+    {
+      "pr_number": 88,
+      "title": "feat: razorpay retry [BILL-204]",
+      "repo_name": "snapmeet/billing-service",
+      "state": "OPEN",
+      "ci_status": "FAILED",
+      "head_branch": "feat/BILL-204-retry",
+      "author_login": "rahul-snap"
+    }
+  ],
+  "commits": [
+    {
+      "sha": "e91c2bf4a1288c9a1288c9a1288c9a1288c9a128",
+      "message": "BILL-204: add webhook signature verification",
+      "author_name": "Rahul Sharma",
+      "author_email": "rahul@snapmeet.com",
+      "files_changed": ["config/settings.py", "app/api/webhooks.py"]
+    }
+  ],
+  "expected_anomalies": [
+    {
+      "rule_id": "HW-03",
+      "title": "HW-03: Declared vs Observed State Mismatch"
+    }
+  ],
+  "expected_citations": ["[PR #88]", "[Commit e91c2bf]"]
+}

@@ -1,0 +1,87 @@
+{
+  "organization": {
+    "id": "org_snapmeet_100",
+    "name": "SnapMeet Inc.",
+    "domain": "snapmeet.com"
+  },
+  "users": [
+    {
+      "id": "usr_rahul_01",
+      "email": "rahul.sharma@snapmeet.com",
+      "full_name": "Rahul Sharma",
+      "github_username": "rahul-snap",
+      "jira_account_id": "rahul_s",
+      "slack_user_id": "U_RAHUL"
+    },
+    {
+      "id": "usr_aman_02",
+      "email": "aman.verma@snapmeet.com",
+      "full_name": "Aman Verma",
+      "github_username": "aman-v",
+      "jira_account_id": "aman_v",
+      "slack_user_id": "U_AMAN"
+    }
+  ],
+  "user_repo_permissions": [
+    {
+      "user_id": "usr_rahul_01",
+      "repo_id": "snapmeet/billing-service",
+      "access_level": "write"
+    },
+    {
+      "user_id": "usr_rahul_01",
+      "repo_id": "snapmeet/video-engine",
+      "access_level": "write"
+    },
+    {
+      "user_id": "usr_aman_02",
+      "repo_id": "snapmeet/billing-service",
+      "access_level": "write"
+    },
+    {
+      "user_id": "usr_aman_02",
+      "repo_id": "snapmeet/auth-service",
+      "access_level": "read"
+    }
+  ],
+  "work_item": {
+    "external_id": "BILL-204",
+    "project_key": "BILL",
+    "title": "Razorpay Subscription & Webhook Invoicing Integration",
+    "description": "Implement automated Razorpay subscription webhooks, signature verification, and recurring invoice generator.",
+    "status": "DONE",
+    "assignee_id": "usr_aman_02",
+    "creator_id": "usr_rahul_01",
+    "acceptance_criteria": [
+      "Verify Razorpay webhook signature header using SHA256 HMAC",
+      "Handle duplicate webhook events idempotently via Redis SETNX",
+      "Apply 005_invoices database migration"
+    ]
+  },
+  "pull_requests": [
+    {
+      "repo_name": "snapmeet/billing-service",
+      "pr_number": 88,
+      "title": "feat(billing): razorpay retry queue and idempotency handler",
+      "state": "OPEN",
+      "head_branch": "feat/razorpay-retry",
+      "author_login": "rahul-snap",
+      "ci_status": "FAILED",
+      "linked_issue_keys": ["BILL-204"]
+    }
+  ],
+  "shadow_commits": [
+    {
+      "sha": "8f3a1bc09128",
+      "message": "wip: temp fix for razorpay webhook payload parser",
+      "author_login": "rahul-snap",
+      "files_changed": ["apps/api/billing/webhook.py"]
+    },
+    {
+      "sha": "99c1e0a29311",
+      "message": "debug: testing event serializer locally",
+      "author_login": "rahul-snap",
+      "files_changed": ["apps/api/billing/serializers.py"]
+    }
+  ]
+}

@@ -1,0 +1,70 @@
+name: KAIRO Production CI Pipeline
+
+on:
+  push:
+    branches: [ main, feat/*, fix/* ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend-quality-and-tests:
+    name: Backend Lint, Typing & Pytest (>=85% Coverage)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r apps/api/requirements.txt pytest-cov ruff mypy
+
+      - name: Run Ruff Linting
+        run: |
+          ruff check apps/api packages workers scripts
+
+      - name: Run Mypy Typecheck
+        run: |
+          mypy apps/api packages workers scripts --ignore-missing-imports
+
+      - name: Run Backend Pytest Suite
+        env:
+          PYTHONPATH: "."
+        run: |
+          pytest apps/api/tests -v --cov=apps/api/app --cov=workers --cov-report=term-missing --cov-fail-under=85
+
+      - name: Run End-to-End Benchmark Evaluation
+        env:
+          PYTHONPATH: "."
+        run: |
+          python scripts/run_benchmark_eval.py
+
+  frontend-build-and-typecheck:
+    name: Frontend TypeScript Verification & Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Verify Web Admin Portal
+        working-directory: apps/web
+        run: |
+          npm install
+          npx tsc --noEmit
+          npm run build
+
+      - name: Verify Desktop HUD Client
+        working-directory: apps/desktop
+        run: |
+          npm install
+          npx tsc --noEmit

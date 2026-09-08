@@ -1,0 +1,24 @@
+[tool.mypy]
+python_version = "3.11"
+check_untyped_defs = true
+disallow_untyped_defs = true
+disallow_untyped_decorators = false
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = "apps.api.tests.*"
+disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = [
+    "celery.*",
+    "tree_sitter.*",
+    "neo4j.*",
+    "pgvector.*",
+    "psycopg2.*"
+]
+ignore_missing_imports = true
