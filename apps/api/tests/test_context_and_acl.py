@@ -122,3 +122,54 @@ def test_api_context_endpoint_invalid_token() -> None:
     )
     assert response.status_code == 401
 
+
+def test_api_context_endpoint_with_db_data() -> None:
+    from unittest.mock import MagicMock
+
+    from apps.api.app.core.database import get_db
+
+    mock_db = MagicMock()
+    mock_wi_res = MagicMock()
+    mock_wi_res.data = [{"id": "wi_1", "external_id": "BILL-204", "title": "Billing task"}]
+    mock_ev_res = MagicMock()
+    mock_ev_res.data = [
+        {
+            "payload": {
+                "commits": [{"id": "c123456", "message": "feat(BILL-204): support retry"}]
+            }
+        }
+    ]
+
+    def table_mock(name: str) -> MagicMock:
+        query = MagicMock()
+        query.select.return_value = query
+        query.eq.return_value = query
+        query.limit.return_value = query
+        if name == "work_items":
+            query.execute.return_value = mock_wi_res
+        else:
+            query.execute.return_value = mock_ev_res
+        return query
+
+    mock_db.table.side_effect = table_mock
+
+    app.dependency_overrides[get_db] = lambda: mock_db
+    try:
+        token = create_access_token({
+            "sub": "usr_aman",
+            "email": "aman@snapmeet.com",
+            "org_id": "org_snapmeet",
+            "allowed_repos": ["snapmeet/billing-service"],
+        })
+        response = client.get(
+            "/api/v1/context/work-items/BILL-204?repo_id=snapmeet/billing-service",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["title"] == "Billing task"
+        assert "c123456" in data["linked_commits"]
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+
+

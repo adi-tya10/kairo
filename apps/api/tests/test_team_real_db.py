@@ -30,13 +30,20 @@ def test_real_db_loud_failure_when_unreachable() -> None:
     Verifies that the database client fails loudly without silently falling back
     to in-memory/fake data when the configured database host is unreachable.
     """
-    db = get_supabase_client()
     try:
+        db = get_supabase_client()
         res = db.table("organizations").select("id").limit(1).execute()
         assert res is not None
-    except (httpx.HTTPError, OSError) as e:
-        # Expected loud network failure when dummy/unreachable URL is configured in .env
-        assert "getaddrinfo" in str(e) or "ConnectError" in str(type(e)) or "Failed to establish" in str(e)
+    except (httpx.HTTPError, OSError, ValueError) as e:
+        # Expected loud network failure or missing env credentials in CI/unconfigured env
+        err = str(e)
+        assert (
+            "getaddrinfo" in err
+            or "ConnectError" in str(type(e))
+            or "Failed to establish" in err
+            or "SUPABASE_URL" in err
+            or "configured in environment" in err
+        )
 
 
 @pytest.mark.skipif(

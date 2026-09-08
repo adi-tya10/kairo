@@ -261,3 +261,67 @@ async def test_check_neo4j_health_connection_failure():
         result = await check_neo4j_health(timeout=1.0)
 
     assert result is False
+
+
+def test_settings_production_validation() -> None:
+    """Verifies fail-fast production security guardrails in Settings."""
+    from apps.api.app.core.config import Settings
+
+    valid_prod_kwargs = {
+        "_env_file": None,
+        "APP_ENV": "production",
+        "SECRET_KEY": "a" * 32,
+        "CORS_ORIGINS": ["https://app.kairo.dev"],
+        "SUPABASE_URL": "https://prod.supabase.co",
+        "SUPABASE_SERVICE_ROLE_KEY": "secure_supabase_role_key_prod",
+        "NEO4J_URI": "neo4j+s://prod.databases.neo4j.io",
+        "NEO4J_USER": "prod_neo4j",
+        "NEO4J_PASSWORD": "super_secure_prod_password",
+        "REDIS_URL": "rediss://prod.redis.io:6379/0",
+        "GITHUB_WEBHOOK_SECRET": "prod_sec_github_987654321",
+        "JIRA_WEBHOOK_SECRET": "prod_sec_jira_987654321",
+        "LINEAR_WEBHOOK_SECRET": "prod_sec_linear_987654321",
+        "GITLAB_WEBHOOK_SECRET": "prod_sec_gitlab_987654321",
+    }
+
+    # Valid production settings pass
+    settings = Settings(**valid_prod_kwargs)
+    assert settings.APP_ENV == "production"
+
+    # Insecure secret key
+    with pytest.raises(ValueError, match="SECRET_KEY must be a cryptographically secure"):
+        Settings(**{**valid_prod_kwargs, "SECRET_KEY": "short"})
+
+    # Wildcard CORS
+    with pytest.raises(ValueError, match="Wildcard"):
+        Settings(**{**valid_prod_kwargs, "CORS_ORIGINS": ["*"]})
+
+    # Missing Supabase
+    with pytest.raises(ValueError, match="SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required"):
+        Settings(**{**valid_prod_kwargs, "SUPABASE_URL": ""})
+
+    # Missing Neo4j
+    with pytest.raises(ValueError, match="NEO4J_URI, NEO4J_USER, and NEO4J_PASSWORD are required"):
+        Settings(**{**valid_prod_kwargs, "NEO4J_PASSWORD": ""})
+
+    # Default Neo4j password
+    with pytest.raises(ValueError, match="Insecure default NEO4J_PASSWORD"):
+        Settings(**{**valid_prod_kwargs, "NEO4J_PASSWORD": "kairo_password"})
+
+    # Missing Redis
+    with pytest.raises(ValueError, match="REDIS_URL is required"):
+        Settings(**{**valid_prod_kwargs, "REDIS_URL": ""})
+
+    # Default webhook secrets
+    with pytest.raises(ValueError, match="Default GITHUB_WEBHOOK_SECRET"):
+        Settings(**{**valid_prod_kwargs, "GITHUB_WEBHOOK_SECRET": "kairo_github_webhook_secret_local"})
+
+    with pytest.raises(ValueError, match="Default JIRA_WEBHOOK_SECRET"):
+        Settings(**{**valid_prod_kwargs, "JIRA_WEBHOOK_SECRET": "kairo_jira_webhook_secret_local"})
+
+    with pytest.raises(ValueError, match="Default LINEAR_WEBHOOK_SECRET"):
+        Settings(**{**valid_prod_kwargs, "LINEAR_WEBHOOK_SECRET": "kairo_linear_webhook_secret_local"})
+
+    with pytest.raises(ValueError, match="Default GITLAB_WEBHOOK_SECRET"):
+        Settings(**{**valid_prod_kwargs, "GITLAB_WEBHOOK_SECRET": "kairo_gitlab_webhook_secret_local"})
+

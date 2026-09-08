@@ -124,3 +124,71 @@ def test_api_alerts_dispatch_with_webhook_url(monkeypatch) -> None:
     assert response.status_code == 200
     assert response.json()["dispatched"] is True
 
+
+def test_celery_alert_task_with_webhook(monkeypatch) -> None:
+    import httpx
+
+    anomaly_data = {
+        "rule_id": "HW-01",
+        "anomaly_type": AnomalyType.HW_01.value,
+        "triggered": True,
+        "severity": AnomalySeverity.MEDIUM.value,
+        "summary": "Shadow Work",
+        "description": "PR active without ticket",
+        "recommended_action": "Create Jira ticket",
+    }
+
+    class MockResp:
+        status_code = 200
+
+    class MockClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+        def post(self, *args, **kwargs):
+            return MockResp()
+
+    monkeypatch.setattr(httpx, "Client", lambda **kwargs: MockClient())
+
+    result = dispatch_anomaly_alert(
+        "snapmeet", "AUTH-101", "snapmeet/auth-service", anomaly_data, webhook_url="https://hooks.slack.com/test"
+    )
+    assert result["status"] == "DELIVERED"
+    assert result["dispatched"] is True
+
+
+def test_celery_alert_task_with_webhook_failure(monkeypatch) -> None:
+    import httpx
+
+    anomaly_data = {
+        "rule_id": "HW-01",
+        "anomaly_type": AnomalyType.HW_01.value,
+        "triggered": True,
+        "severity": AnomalySeverity.MEDIUM.value,
+        "summary": "Shadow Work",
+        "description": "PR active without ticket",
+        "recommended_action": "Create Jira ticket",
+    }
+
+    class MockFailClient:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+        def post(self, *args, **kwargs):
+            raise httpx.ConnectError("Connection failed")
+
+    monkeypatch.setattr(httpx, "Client", lambda **kwargs: MockFailClient())
+
+    result = dispatch_anomaly_alert(
+        "snapmeet", "AUTH-101", "snapmeet/auth-service", anomaly_data, webhook_url="https://hooks.slack.com/fail"
+    )
+    assert result["status"] == "FAILED"
+    assert result["dispatched"] is False
+
+

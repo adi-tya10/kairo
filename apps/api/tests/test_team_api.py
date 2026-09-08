@@ -339,3 +339,21 @@ def test_api_team_auth_rejection() -> None:
     bad_headers = {"Authorization": "Bearer invalid_token_123"}
     res = client.get("/api/v1/team/continuity-map?organization_id=snapmeet", headers=bad_headers)
     assert res.status_code == 401
+
+
+def test_team_continuity_engine_risk_levels() -> None:
+    from apps.api.app.engines.team_continuity import TeamContinuityEngine
+
+    metadata = [
+        {"repo_name": "repo-high", "primary_owner": "Alice", "ownership_pct": 0.5, "active_maintainers": 1},
+        {"repo_name": "repo-med", "primary_owner": "Bob", "ownership_pct": 0.72, "active_maintainers": 3},
+        {"repo_name": "repo-low", "primary_owner": "Charlie", "ownership_pct": 0.3, "active_maintainers": 4},
+    ]
+    risks = TeamContinuityEngine.evaluate_service_spof_risks("org-test", metadata)
+    assert len(risks) == 3
+    assert risks[0].risk_level == "HIGH"
+    assert "Assign secondary maintainer" in risks[0].remedy
+    assert risks[1].risk_level == "MEDIUM"
+    assert "Rotate code review" in risks[1].remedy
+    assert risks[2].risk_level == "LOW"
+

@@ -35,14 +35,27 @@ jobs:
       - name: Run Backend Pytest Suite
         env:
           PYTHONPATH: "."
+          APP_ENV: "test"
+          SECRET_KEY: "kairo-ci-testing-crypto-key-at-least-32-chars-long-2026"
+          SUPABASE_URL: "https://mock-ci-project.supabase.co"
+          SUPABASE_SERVICE_ROLE_KEY: "mock-ci-service-role-key-testing"
+          NEO4J_URI: "bolt://localhost:7687"
+          NEO4J_USER: "neo4j"
+          NEO4J_PASSWORD: "ci_test_password"
+          REDIS_URL: "redis://localhost:6379/0"
         run: |
           pytest apps/api/tests -v --cov=apps/api/app --cov=workers --cov-report=term-missing --cov-fail-under=85
 
       - name: Run End-to-End Benchmark Evaluation
         env:
           PYTHONPATH: "."
+          APP_ENV: "test"
+          SECRET_KEY: "kairo-ci-testing-crypto-key-at-least-32-chars-long-2026"
+          SUPABASE_URL: "https://mock-ci-project.supabase.co"
+          SUPABASE_SERVICE_ROLE_KEY: "mock-ci-service-role-key-testing"
         run: |
           python scripts/run_benchmark_eval.py
+
 
   frontend-build-and-typecheck:
     name: Frontend TypeScript Verification & Build
