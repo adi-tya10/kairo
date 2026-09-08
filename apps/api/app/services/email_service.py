@@ -28,8 +28,10 @@ class EmailService:
         team_name: str | None,
         role: str,
         invite_url: str,
+        base_url: str,
     ) -> str:
         name_display = recipient_name if recipient_name else "there"
+        logo_url = "https://raw.githubusercontent.com/adi-tya10/kairo/main/apps/web/public/kairo.png"
         team_row = (
             f"""
             <tr>
@@ -55,16 +57,26 @@ class EmailService:
         <!-- Main Container -->
         <table role="presentation" width="100%" style="max-width: 560px; background-color: #0F172A; border: 1px solid #1E293B; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);">
 
-          <!-- Header Banner -->
+          <!-- Header Banner with Transparent Logo -->
           <tr>
             <td style="padding: 32px 36px 24px; border-bottom: 1px solid #1E293B; background: linear-gradient(180deg, #1E293B 0%, #0F172A 100%);">
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
                 <tr>
-                  <td>
-                    <div style="display: inline-block; padding: 4px 10px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 6px; color: #60A5FA; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">
-                      KAIRO • Work Continuity
+                  <td valign="middle" style="width: 44px;">
+                    <a href="{base_url}" target="_blank" style="text-decoration: none;">
+                      <img src="{logo_url}" alt="KAIRO Emblem" width="40" height="40" style="display: block; width: 40px; height: 40px; object-fit: contain; border: 0;" />
+                    </a>
+                  </td>
+                  <td valign="middle" style="padding-left: 12px;">
+                    <span style="font-size: 18px; font-weight: 800; color: #F8FAFC; letter-spacing: -0.02em; line-height: 1;">KAIRO</span>
+                    <div style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 4px; color: #60A5FA; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">
+                      Work Continuity
                     </div>
-                    <h1 style="margin: 16px 0 6px; font-size: 22px; font-weight: 700; color: #F8FAFC; letter-spacing: -0.02em;">
+                  </td>
+                </tr>
+                <tr>
+                  <td colspan="2" style="padding-top: 18px;">
+                    <h1 style="margin: 0 0 6px; font-size: 22px; font-weight: 700; color: #F8FAFC; letter-spacing: -0.02em;">
                       You've been invited to join {organization_name}
                     </h1>
                     <p style="margin: 0; font-size: 14px; color: #94A3B8;">
@@ -129,8 +141,8 @@ class EmailService:
           <!-- Footer -->
           <tr>
             <td style="padding: 20px 36px; border-top: 1px solid #1E293B; background-color: #070B14; text-align: center;">
-              <p style="margin: 0 0 4px; font-size: 11px; color: #64748B;">
-                Sent securely by KAIRO Autonomous Work Continuity Engine
+              <p style="margin: 0 0 6px; font-size: 11px; color: #64748B;">
+                Sent securely by <a href="{base_url}" target="_blank" style="color: #60A5FA; text-decoration: none; font-weight: 600;">KAIRO</a> Autonomous Work Continuity Engine
               </p>
               <p style="margin: 0; font-size: 11px; color: #475569;">
                 If you were not expecting this invitation, you can safely ignore this email.
@@ -228,7 +240,11 @@ class EmailService:
         Fails safely without raising exceptions to API callers.
         """
         settings = get_settings()
-        invite_url = f"{settings.WEB_APP_URL.rstrip('/')}/auth?invite={invite_token}"
+        base_url = settings.WEB_APP_URL.rstrip('/')
+        if settings.APP_ENV.lower() == "production" and ("localhost" in base_url or "127.0.0.1" in base_url):
+            base_url = "https://kairo-web.onrender.com"
+
+        invite_url = f"{base_url}/auth?invite={invite_token}"
         org_display = organization_id.capitalize()
 
         subject = f"You've been invited to join {org_display} on KAIRO"
@@ -238,6 +254,7 @@ class EmailService:
             team_name=team_name,
             role=role,
             invite_url=invite_url,
+            base_url=base_url,
         )
         text_body = cls._build_invitation_text(
             recipient_name=recipient_name,

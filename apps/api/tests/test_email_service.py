@@ -16,13 +16,16 @@ def test_build_invitation_html_with_team():
         organization_name="Snapmeet",
         team_name="Billing Pod",
         role="DEVELOPER",
-        invite_url="http://localhost:3000/auth?invite=token123",
+        invite_url="https://kairo-web.onrender.com/auth?invite=token123",
+        base_url="https://kairo-web.onrender.com",
     )
     assert "Rahul Sharma" in html
     assert "Snapmeet" in html
     assert "Billing Pod" in html
     assert "DEVELOPER" in html
-    assert "http://localhost:3000/auth?invite=token123" in html
+    assert "https://kairo-web.onrender.com/auth?invite=token123" in html
+    assert "raw.githubusercontent.com/adi-tya10/kairo/main/apps/web/public/kairo.png" in html
+    assert "localhost" not in html
 
 
 def test_build_invitation_html_without_team_and_name():
@@ -31,11 +34,14 @@ def test_build_invitation_html_without_team_and_name():
         organization_name="Acme",
         team_name=None,
         role="ADMIN",
-        invite_url="http://localhost:3000/auth?invite=token456",
+        invite_url="https://kairo-web.onrender.com/auth?invite=token456",
+        base_url="https://kairo-web.onrender.com",
     )
     assert "Hi <strong style=\"color: #F8FAFC;\">there</strong>" in html
     assert "Acme" in html
     assert "ADMIN" in html
+    assert "raw.githubusercontent.com/adi-tya10/kairo/main/apps/web/public/kairo.png" in html
+    assert "localhost" not in html
 
 
 def test_build_invitation_text():

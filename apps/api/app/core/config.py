@@ -80,7 +80,7 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = ""
     SMTP_FROM_EMAIL: str = "adityaeeshan5230@gmail.com"
     SMTP_FROM_NAME: str = "KAIRO Team"
-    WEB_APP_URL: str = "http://localhost:3000"
+    WEB_APP_URL: str = "https://kairo-web-91or.onrender.com"
 
     @model_validator(mode="after")
     def validate_production_configuration(self) -> "Settings":
