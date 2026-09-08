@@ -77,6 +77,7 @@ $$\text{Trigger} \iff \exists s \in \text{CodeImportedServices} : s \notin \text
 * **Enum:** `AnomalyType.HW_04 = "HW-04: Architecture Documentation Drift"`
 * **Severity:** `LOW`
 * **Trigger:** Code imports a service or database that is absent from the architecture diagram/graph.
+* **Runtime Invocation:** Evaluated dynamically during `/api/v1/handoff/generate` (via `code_imported_services` vs. `diagram_documented_services` or parsed commit paths) and asynchronously via Celery task `workers.tasks.diagram.evaluate_architecture_drift_task`.
 * **Recommended Action:** Update the system architecture diagram to document newly introduced dependencies.
 
 ### Rule HW-05: Orphaned Critical Dependency

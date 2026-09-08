@@ -28,5 +28,5 @@
 * **API1: Broken Object Level Authorization (BOLA):** Strict RLS enforcing `WHERE organization_id = :org_id` on every query.
 * **API2: Broken Authentication:** Short-lived Supabase JWTs with rotating HMAC keys and PKCE auth flows.
 * **API3: Broken Object Property Level Authorization:** Pydantic v2 schemas reject unexpected request payload fields.
-* **API4: Unrestricted Resource Consumption:** Ingress rate limiting (100 req/min for webhooks, 20 req/min for Q&A).
+* **API4: Unrestricted Resource Consumption:** Distributed Redis-backed sliding-window rate limiting (`kairo:ratelimit:auth:*` via atomic sorted sets across multi-replica API containers, 20 attempts/min for login, 100 req/min for webhooks).
 * **API8: Security Misconfiguration:** Strict CORS whitelist and security headers (CSP, HSTS, X-Content-Type-Options).

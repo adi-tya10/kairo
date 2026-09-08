@@ -1,4 +1,5 @@
 import uuid
+import pytest
 from fastapi.testclient import TestClient
 
 from apps.api.app.main import app
@@ -45,3 +46,101 @@ def test_auth_login_invalid_credentials() -> None:
         json={"email": "admin@snapmeet.com", "password": "WrongPassword!"},
     )
     assert res.status_code == 401
+
+
+def test_distributed_rate_limiter_shared_across_instances() -> None:
+    """
+    Validates that rate limit state is shared across multiple API replicas/instances
+    via a shared Redis client, preventing distributed brute-force attacks.
+    """
+    from fastapi import HTTPException
+    from apps.api.app.api.v1.auth import _check_rate_limit, MAX_AUTH_ATTEMPTS
+
+    class MockRedisPipeline:
+        def __init__(self, store: dict[str, list[float]]) -> None:
+            self.store = store
+            self.key = ""
+            self.items: list[tuple[str, float]] = []
+
+        def zremrangebyscore(self, key: str, min_score: float, max_score: float) -> "MockRedisPipeline":
+            self.key = key
+            if key in self.store:
+                self.store[key] = [s for s in self.store[key] if s > max_score]
+            return self
+
+        def zadd(self, key: str, mapping: dict[str, float]) -> "MockRedisPipeline":
+            self.key = key
+            entries = self.store.setdefault(key, [])
+            for _, score in mapping.items():
+                entries.append(score)
+            return self
+
+        def zcard(self, key: str) -> "MockRedisPipeline":
+            return self
+
+        def expire(self, key: str, ttl: int) -> "MockRedisPipeline":
+            return self
+
+        def execute(self) -> list[int]:
+            count = len(self.store.get(self.key, []))
+            return [0, len(self.items), count, 1]
+
+    class MockSharedRedis:
+        def __init__(self) -> None:
+            # Single shared backend store (simulates Redis cluster)
+            self.store: dict[str, list[float]] = {}
+
+        def pipeline(self) -> MockRedisPipeline:
+            return MockRedisPipeline(self.store)
+
+    shared_redis = MockSharedRedis()
+    client_ip = f"198.51.100.{uuid.uuid4().hex[:4]}"
+
+    # Simulate Instance A handling 10 attempts
+    for _ in range(10):
+        _check_rate_limit(client_ip, redis_client=shared_redis)
+
+    # Simulate Instance B handling 10 attempts
+    for _ in range(10):
+        _check_rate_limit(client_ip, redis_client=shared_redis)
+
+    # Instance A receives the 21st attempt -> must be blocked by shared Redis state
+    import pytest
+    with pytest.raises(HTTPException) as exc_info:
+        _check_rate_limit(client_ip, redis_client=shared_redis)
+    assert exc_info.value.status_code == 429
+    assert "Too many authentication attempts" in str(exc_info.value.detail)
+
+
+def test_rate_limiter_memory_fallback() -> None:
+    """Verifies that the rate limiter gracefully falls back to memory if Redis is unavailable."""
+    import pytest
+    from fastapi import HTTPException
+    from apps.api.app.api.v1.auth import _check_rate_limit, MAX_AUTH_ATTEMPTS
+
+    client_id = f"test_mem_{uuid.uuid4().hex[:6]}"
+    for _ in range(MAX_AUTH_ATTEMPTS):
+        _check_rate_limit(client_id, redis_client=None)
+
+    with pytest.raises(HTTPException) as exc_info:
+        _check_rate_limit(client_id, redis_client=None)
+    assert exc_info.value.status_code == 429
+
+
+@pytest.mark.asyncio
+async def test_redis_health_and_client() -> None:
+    from unittest.mock import patch, MagicMock
+    from apps.api.app.core.database import check_redis_health, get_redis_client
+
+    mock_client = MagicMock()
+    mock_client.ping.return_value = True
+
+    with patch("apps.api.app.core.database.get_redis_client", return_value=mock_client):
+        healthy = await check_redis_health()
+        assert healthy is True
+
+    with patch("apps.api.app.core.database.get_redis_client", side_effect=Exception("Redis down")):
+        unhealthy = await check_redis_health()
+        assert unhealthy is False
+
+

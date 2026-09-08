@@ -23,6 +23,8 @@ class HandoffGenerateRequest(BaseModel):
     incoming_developer: str
     pull_requests: list[PullRequestEvent] = []
     commits: list[CommitInfo] = []
+    code_imported_services: list[str] = []
+    diagram_documented_services: list[str] = []
 
 
 @router.post("/generate", response_model=HandoffPackage, status_code=status.HTTP_200_OK)
@@ -71,6 +73,26 @@ async def generate_handoff(
         )
         if hw03_result.triggered:
             anomalies.append(hw03_result)
+
+    # HW-04: Architecture Documentation Drift
+    code_services = list(request_body.code_imported_services)
+    diagram_services = list(request_body.diagram_documented_services)
+    if not code_services and request_body.commits:
+        for c in request_body.commits:
+            for f in c.files_changed:
+                parts = f.replace("\\", "/").split("/")
+                for p in parts:
+                    clean_p = p.replace(".py", "").replace(".ts", "").replace(".js", "").lower()
+                    if ("service" in clean_p or "db" in clean_p or "api" in clean_p) and clean_p not in code_services:
+                        code_services.append(clean_p)
+
+    if code_services or diagram_services:
+        hw04_result = AnomalyEngine.evaluate_hw04_architecture_drift(
+            code_imported_services=code_services,
+            diagram_documented_services=diagram_services,
+        )
+        if hw04_result.triggered:
+            anomalies.append(hw04_result)
 
     # HW-05: Orphaned Dependency detection
     try:

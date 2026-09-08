@@ -220,3 +220,60 @@ def test_embeddings_generation_and_storage():
     )
     assert result["dimensions"] == 768
 
+
+def test_semantic_embedding_cosine_similarity():
+    from workers.tasks.embeddings import generate_768_embedding
+
+    text1 = "PostgreSQL database table schema query and indexing"
+    text2 = "SQL relational db query storage and migration"
+    text3 = "Chocolate chip cookie recipe baking with sugar and eggs"
+
+    vec1 = generate_768_embedding(text1)
+    vec2 = generate_768_embedding(text2)
+    vec3 = generate_768_embedding(text3)
+
+    assert len(vec1) == 768
+    assert len(vec2) == 768
+    assert len(vec3) == 768
+
+    sim_related = sum(a * b for a, b in zip(vec1, vec2))
+    sim_unrelated = sum(a * b for a, b in zip(vec1, vec3))
+
+    assert sim_related > 0.6, f"Expected high similarity for related texts, got {sim_related}"
+    assert sim_unrelated < 0.2, f"Expected low similarity for unrelated texts, got {sim_unrelated}"
+    assert sim_related > sim_unrelated, f"Related similarity {sim_related} must exceed unrelated {sim_unrelated}"
+
+
+def test_openai_and_gemini_embedding_providers():
+    from unittest.mock import patch, MagicMock
+    from workers.tasks.embeddings import _embed_with_openai, _embed_with_gemini, generate_768_embedding
+
+    fake_openai_resp = MagicMock()
+    fake_openai_resp.status_code = 200
+    fake_openai_resp.json.return_value = {
+        "data": [{"embedding": [0.01] * 768}]
+    }
+
+    with patch("httpx.Client.post", return_value=fake_openai_resp):
+        vec = _embed_with_openai("test text", "sk-test-key")
+        assert vec is not None
+        assert len(vec) == 768
+
+    fake_gemini_resp = MagicMock()
+    fake_gemini_resp.status_code = 200
+    fake_gemini_resp.json.return_value = {
+        "embedding": {"values": [0.02] * 768}
+    }
+
+    with patch("httpx.Client.post", return_value=fake_gemini_resp):
+        vec_gemini = _embed_with_gemini("test text", "gemini-test-key-long-enough")
+        assert vec_gemini is not None
+        assert len(vec_gemini) == 768
+
+    # Test error handling when HTTP call fails
+    with patch("httpx.Client.post", side_effect=Exception("API connection timeout")):
+        assert _embed_with_openai("test", "sk-bad") is None
+        assert _embed_with_gemini("test", "bad-key") is None
+
+
+

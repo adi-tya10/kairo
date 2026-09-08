@@ -90,10 +90,14 @@ When developers do not format branch names or commit messages with Jira keys:
 - Compares AST entities against Jira Acceptance Criteria keywords and entities.
 
 ### Tier 4: Vector Semantic Embeddings (85%+ Confidence)
-- Generates 768-dimensional embeddings for:
+- Generates 768-dimensional semantic embeddings for:
   - Jira ticket description & acceptance criteria
   - Slack message threads & channel discussions
   - Pull request summaries and Markdown ADRs
+- Supported embedding model architectures:
+  - **OpenAI:** `text-embedding-3-small` configured with `dimensions=768`
+  - **Google Gemini:** `text-embedding-004` (natively 768-dimensional)
+  - **Local/Offline Engine:** Deterministic software-engineering semantic concept-space projections with L2 normalization (and `fastembed` ONNX support)
 - Computes cosine similarity in PostgreSQL using `pgvector`:
   $$\text{Sim}(v_{task}, v_{slack}) = \frac{v_{task} \cdot v_{slack}}{\|v_{task}\| \|v_{slack}\|}$$
 - Only embeddings exceeding a strict threshold of **$\ge 0.82$** are linked as supporting evidence citations.

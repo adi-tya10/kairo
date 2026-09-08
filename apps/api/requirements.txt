@@ -13,6 +13,7 @@ httpx>=0.27.0
 python-dotenv>=1.0.1
 tree-sitter>=0.21.3
 supabase>=2.31.0
+fastembed>=0.8.0
 
 # Testing & Quality
 pytest>=8.1.0

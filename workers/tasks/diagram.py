@@ -17,3 +17,23 @@ def process_diagram_document(raw_text: str, document_id: str) -> dict[str, objec
         "component_count": len(components),
         "components": [{"label": c.label, "confidence": c.confidence} for c in components],
     }
+
+
+@celery_app.task(name="workers.tasks.diagram.evaluate_architecture_drift_task")
+def evaluate_architecture_drift_task(
+    organization_id: str,
+    code_imported_services: list[str],
+    diagram_documented_services: list[str],
+    repo_id: str = "",
+    task_key: str = "",
+) -> dict[str, object]:
+    """
+    Celery task evaluating HW-04 Architecture Documentation Drift asynchronously.
+    """
+    from apps.api.app.engines.anomaly_rules import AnomalyEngine
+    hw04 = AnomalyEngine.evaluate_hw04_architecture_drift(
+        code_imported_services=code_imported_services,
+        diagram_documented_services=diagram_documented_services,
+    )
+    return hw04.model_dump()
+

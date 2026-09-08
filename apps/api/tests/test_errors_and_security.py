@@ -79,3 +79,43 @@ def test_github_signature_verification_missing():
     payload = b'{"action": "opened", "number": 88}'
     with pytest.raises(SignatureVerificationError):
         verify_github_signature(payload, None)
+
+
+def test_production_configuration_fail_fast():
+    """Confirms production mode fails loudly if insecure/default credentials or wildcard CORS are used."""
+    from apps.api.app.core.config import Settings
+
+    # 1. Insecure default SECRET_KEY in production
+    with pytest.raises(ValueError, match="SECRET_KEY"):
+        Settings(
+            APP_ENV="production",
+            SECRET_KEY="kairo-development-secret-key-change-in-production",
+            SUPABASE_URL="https://test.supabase.co",
+            SUPABASE_SERVICE_ROLE_KEY="valid-test-key-for-prod",
+            NEO4J_URI="bolt://localhost:7687",
+            NEO4J_USER="neo4j",
+            NEO4J_PASSWORD="secure_prod_password_123",
+        )
+
+    # 2. Wildcard CORS in production
+    with pytest.raises(ValueError, match="CORS_ORIGINS"):
+        Settings(
+            APP_ENV="production",
+            SECRET_KEY="a_very_long_cryptographically_secure_random_key_32_chars",
+            CORS_ORIGINS=["*"],
+            SUPABASE_URL="https://test.supabase.co",
+            SUPABASE_SERVICE_ROLE_KEY="valid-test-key-for-prod",
+            NEO4J_URI="bolt://localhost:7687",
+            NEO4J_USER="neo4j",
+            NEO4J_PASSWORD="secure_prod_password_123",
+        )
+
+    # 3. Missing Supabase credentials in production
+    with pytest.raises(ValueError, match="SUPABASE_URL"):
+        Settings(
+            APP_ENV="production",
+            SECRET_KEY="a_very_long_cryptographically_secure_random_key_32_chars",
+            SUPABASE_URL="",
+            SUPABASE_SERVICE_ROLE_KEY="",
+        )
+

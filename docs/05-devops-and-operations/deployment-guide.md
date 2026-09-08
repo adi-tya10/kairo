@@ -41,3 +41,37 @@ supabase db push --include-all
 # Graph Migrations (Neo4j AuraDB)
 python -m graph.apply_migrations
 ```
+
+---
+
+## 3. Configuration Reference
+
+Every environment variable utilized by KAIRO across the API gateway, Celery workers, and web frontend is strictly validated on startup. In `APP_ENV=production`, insecure default values and missing credentials trigger immediate fail-fast termination.
+
+| Environment Variable | Required | Default / Example | Purpose & Operational Scope | Where to Obtain (Third-Party Provider) |
+| :--- | :---: | :--- | :--- | :--- |
+| `APP_ENV` | Yes | `development` \| `staging` \| `production` | Deployment runtime target. Controls fail-fast validation and security constraints. | Infrastructure configuration |
+| `SECRET_KEY` | Yes | High-entropy hex string (min 32 chars) | HMAC secret for signing and verifying JWT authentication tokens. | Generated via `openssl rand -hex 32` |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | No | `1440` (24 hours) | JWT token lifespan in minutes before re-authentication is required. | Internal policy configuration |
+| `DATABASE_URL` | Yes | `postgresql://postgres:<pwd>@<host>:5432/postgres` | PostgreSQL connection string for Alembic migrations and relational event storage. | Supabase / AWS RDS / local PostgreSQL |
+| `SUPABASE_URL` | Yes | `https://<ref>.supabase.co` | REST API gateway URL for Supabase PostgREST client bindings. | Supabase Project Settings → API → URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes | `eyJhbGciOi...` | High-privilege service role key for tenant administration and RLS bypass. | Supabase Project Settings → API → service_role key |
+| `NEO4J_URI` | Yes | `bolt://localhost:7687` \| `neo4j+s://<id>.databases.neo4j.io` | Connection URI for the temporal provenance knowledge graph. | Neo4j AuraDB Console → Instance Details |
+| `NEO4J_USER` | Yes | `neo4j` | Database username for Neo4j AuraDB cluster. | Neo4j AuraDB Console |
+| `NEO4J_PASSWORD` | Yes | High-entropy password | Database password for Neo4j AuraDB cluster (default forbidden in prod). | Neo4j AuraDB Instance creation credentials |
+| `REDIS_URL` | Yes | `redis://localhost:6379/0` \| `rediss://...` | Connection URL for distributed sliding-window rate limiter and Celery broker. | Upstash Redis Console / AWS ElastiCache |
+| `CELERY_BROKER_URL` | No | Defaults to `REDIS_URL` | Explicit Celery message broker queue URL. | Managed Redis broker |
+| `CELERY_RESULT_BACKEND` | No | Defaults to `REDIS_URL` | Celery task result backend URL. | Managed Redis / Database backend |
+| `GITHUB_WEBHOOK_SECRET` | Yes | High-entropy secret | Secret used to cryptographically verify GitHub `X-Hub-Signature-256`. | GitHub Repository / App Settings → Webhooks |
+| `JIRA_WEBHOOK_SECRET` | Yes | High-entropy secret | Secret used to verify Jira webhook payload signatures (`X-Hub-Signature`). | Atlassian Jira Administration → System → WebHooks |
+| `LINEAR_WEBHOOK_SECRET` | Yes | High-entropy secret | Secret used to verify Linear HMAC signatures (`Linear-Signature`). | Linear Workspace Settings → API → Webhooks |
+| `GITLAB_WEBHOOK_SECRET` | Yes | High-entropy secret | Secret token used to verify GitLab events (`X-Gitlab-Token`). | GitLab Project Settings → Webhooks → Secret Token |
+| `SLACK_WEBHOOK_URL` | No | `https://hooks.slack.com/services/...` | Incoming webhook target for automated anomaly radar alerts and handoff digests. | Slack API Developer Console → Incoming Webhooks |
+| `GROQ_API_KEY` | Conditional | `gsk_...` | High-throughput LPU inference key for sub-second grounded synthesis. | Groq Cloud Console (`console.groq.com`) |
+| `GEMINI_API_KEY` | Conditional | `AIzaSy...` | Google Gemini API key for Gemini 1.5 Pro synthesis and text-embedding-004. | Google AI Studio (`aistudio.google.com`) |
+| `OPENAI_API_KEY` | Conditional | `sk-proj-...` | OpenAI API key for GPT models and 768-dim text-embedding-3-small vectors. | OpenAI Platform Dashboard (`platform.openai.com`) |
+| `LLM_MODEL_NAME` | No | `gemini-1.5-pro` | Model identifier string for grounded synthesis and reasoning. | Provider model registry |
+| `LLM_TEMPERATURE` | No | `0.1` | Synthesis temperature (strictly low for grounded determinism). | Internal engine tuning |
+| `CORS_ORIGINS` | No | `["http://localhost:3000","http://localhost:1420","tauri://localhost"]` | Allowed HTTP Origin headers (JSON array; wildcard forbidden in prod). | Security CORS whitelist |
+| `NEXT_PUBLIC_API_URL` | No | `http://localhost:8000` | Backend gateway URL used by the Next.js company administrative portal. | Deployed API endpoint |
+

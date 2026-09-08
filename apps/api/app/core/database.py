@@ -10,12 +10,52 @@ import httpx
 from neo4j import AsyncGraphDatabase, GraphDatabase
 from neo4j import Driver as Neo4jDriver
 from neo4j import Session as Neo4jSession
+import redis
 
 from apps.api.app.core.config import get_settings
 from apps.api.app.core.logging import get_logger
 from supabase import Client, create_client
 
 logger = get_logger("kairo.core.database")
+
+# ---------------------------------------------------------------------------
+# Redis Connection Pool & Client
+# ---------------------------------------------------------------------------
+
+_redis_client: redis.Redis | None = None
+
+
+def get_redis_client() -> redis.Redis:
+    """
+    Returns a configured, connection-pooled singleton Redis client instance.
+    Shared across API replicas for distributed rate limiting and caching.
+    """
+    global _redis_client
+    if _redis_client is not None:
+        return _redis_client
+
+    settings = get_settings()
+    pool = redis.ConnectionPool.from_url(
+        settings.REDIS_URL,
+        max_connections=50,
+        decode_responses=True,
+    )
+    _redis_client = redis.Redis(connection_pool=pool)
+    return _redis_client
+
+
+async def check_redis_health(timeout: float = 5.0) -> bool:
+    """
+    Verifies that the Redis server is reachable via PING.
+    Fails closed if the service is unreachable.
+    """
+    try:
+        client = get_redis_client()
+        return bool(client.ping())
+    except Exception as exc:
+        logger.error(f"Redis health check failed: {exc}")
+        return False
+
 
 # ---------------------------------------------------------------------------
 # Supabase / PostgreSQL

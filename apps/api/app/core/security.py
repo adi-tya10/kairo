@@ -133,3 +133,16 @@ def verify_linear_signature(payload_body: bytes, header_signature: str | None) -
         raise SignatureVerificationError("Linear HMAC signature verification failed")
 
     return True
+
+
+def verify_gitlab_token(header_token: str | None) -> bool:
+    """Verifies mandatory secret token for inbound GitLab webhooks."""
+    if not header_token:
+        raise SignatureVerificationError("Missing X-Gitlab-Token header")
+
+    settings = get_settings()
+    expected_token = settings.GITLAB_WEBHOOK_SECRET
+    if not hmac.compare_digest(header_token.strip(), expected_token.strip()):
+        raise SignatureVerificationError("GitLab secret token verification failed")
+
+    return True

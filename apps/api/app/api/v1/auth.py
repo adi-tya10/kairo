@@ -17,16 +17,52 @@ from supabase import Client
 logger = get_logger("kairo.api.auth")
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
-# In-memory sliding-window rate limiter to prevent brute-force attacks
+# Redis-backed distributed sliding-window rate limiter (with in-memory fallback)
 _rate_limit_store: dict[str, list[float]] = {}
 RATE_LIMIT_WINDOW = 60.0  # 1 minute window
 MAX_AUTH_ATTEMPTS = 20    # Max 20 attempts per window per client
 
 
-def _check_rate_limit(client_identifier: str) -> None:
+def _check_rate_limit(client_identifier: str, redis_client: Any = "AUTO") -> None:
+    """
+    Distributed sliding-window rate limiter backed by Redis.
+    Guarantees consistent rate-limiting across multi-replica container deployments.
+    Falls back gracefully to local memory when Redis is offline.
+    """
     now = time.time()
+
+    # 1. Attempt Redis shared rate limiting
+    if redis_client == "AUTO":
+        try:
+            from apps.api.app.core.database import get_redis_client
+            redis_client = get_redis_client()
+        except Exception:
+            redis_client = None
+
+    if redis_client is not None and redis_client is not False:
+        try:
+            key = f"kairo:ratelimit:auth:{client_identifier}"
+            clear_before = now - RATE_LIMIT_WINDOW
+            pipe = redis_client.pipeline()
+            pipe.zremrangebyscore(key, 0, clear_before)
+            pipe.zadd(key, {f"{now}:{time.time_ns()}": now})
+            pipe.zcard(key)
+            pipe.expire(key, int(RATE_LIMIT_WINDOW) + 10)
+            res = pipe.execute()
+            attempt_count = res[2]
+            if attempt_count > MAX_AUTH_ATTEMPTS:
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail="Too many authentication attempts. Please try again in 60 seconds.",
+                )
+            return
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.debug(f"Redis rate limit check fallback: {exc}")
+
+    # 2. Ephemeral memory fallback
     attempts = _rate_limit_store.setdefault(client_identifier, [])
-    # Filter out attempts older than window
     valid_attempts = [t for t in attempts if now - t < RATE_LIMIT_WINDOW]
     if len(valid_attempts) >= MAX_AUTH_ATTEMPTS:
         raise HTTPException(

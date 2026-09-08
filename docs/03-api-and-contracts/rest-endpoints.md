@@ -69,14 +69,17 @@
 
 ## 2. Health & Liveness (`/health`)
 
-* **Path:** `GET /api/v1/health`
+* **Path:** `GET /api/v1/health` (also mounted at `GET /health`)
 * **Status Code:** `200 OK`
 * **Response:**
   ```json
   {
     "status": "healthy",
     "service": "kairo-api",
-    "version": "0.1.0"
+    "version": "0.1.0",
+    "postgresql": true,
+    "neo4j_graph": true,
+    "redis": true
   }
   ```
 

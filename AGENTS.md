@@ -45,7 +45,7 @@ When bootstrapping, verifying, or testing code in this repository, the AI agent 
 | **Install Backend Dependencies** | `uv pip install -r requirements.txt` | `apps/api` |
 | **Install Frontend Dependencies** | `pnpm install` | `apps/web` |
 | **Run Backend Dev Server** | `uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload` | `apps/api` |
-| **Run Worker Dev Server** | `celery -A celery_app worker --loglevel=info` | `workers` |
+| **Run Worker Dev Server** | `celery -A celery_app worker --loglevel=info -Q ingest,embeddings,alerts,diagram --concurrency=4` | `workers` |
 | **Run Frontend Dev Server** | `pnpm dev` | `apps/web` |
 | **Apply Postgres Migrations** | `alembic upgrade head` | `apps/api` |
 | **Apply Neo4j Migrations** | `python graph/migrate.py --up` | repo root |

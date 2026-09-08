@@ -1,7 +1,9 @@
 import json
 from typing import Any
 
-from fastapi import APIRouter, Header, Request, status
+from apps.api.app.core.errors import SignatureVerificationError
+from apps.api.app.core.security import verify_gitlab_token
+from fastapi import APIRouter, Header, HTTPException, Request, status
 from workers.celery_app import celery_app
 
 router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
@@ -16,8 +18,16 @@ async def handle_gitlab_webhook(
     x_gitlab_token: str | None = Header(None, alias="X-Gitlab-Token"),
 ) -> dict[str, Any]:
     """
-    Ingests GitLab Webhooks (Merge Requests, Pipelines, Pushes).
+    Ingests GitLab Webhooks (Merge Requests, Pipelines, Pushes) with mandatory token verification.
     """
+    try:
+        verify_gitlab_token(x_gitlab_token)
+    except SignatureVerificationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Unauthorized webhook: {exc}",
+        )
+
     raw_body = await request.body()
     try:
         payload = json.loads(raw_body) if raw_body else {}

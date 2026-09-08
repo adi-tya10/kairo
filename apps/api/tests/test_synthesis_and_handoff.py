@@ -224,3 +224,56 @@ def test_api_handoff_invalid_token() -> None:
     assert response.status_code == 401
 
 
+def test_handoff_hw04_architecture_drift_populates_anomalies() -> None:
+    token = create_access_token({
+        "sub": "user_alice",
+        "org_id": "snapmeet",
+        "role": "MEMBER",
+        "allowed_repos": ["snapmeet/auth-service"],
+    })
+    payload = {
+        "organization_id": "snapmeet",
+        "work_item": {
+            "id": "wi_AUTH-101",
+            "organization_id": "snapmeet",
+            "external_id": "AUTH-101",
+            "project_key": "AUTH",
+            "title": "OAuth2 Gateway Integration",
+            "status": "IN_PROGRESS",
+        },
+        "repo_id": "snapmeet/auth-service",
+        "outgoing_developer": "Alice Chen",
+        "incoming_developer": "Bob Smith",
+        "commits": [],
+        "pull_requests": [],
+        "code_imported_services": ["payment-service", "auth-service", "audit-service"],
+        "diagram_documented_services": ["auth-service"],
+    }
+    response = client.post(
+        "/api/v1/handoff/generate",
+        json=payload,
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "anomalies" in data
+    hw04_anomalies = [a for a in data["anomalies"] if a["rule_id"] == "HW-04"]
+    assert len(hw04_anomalies) == 1
+    hw04 = hw04_anomalies[0]
+    assert hw04["triggered"] is True
+    assert set(hw04["affected_entities"]) == {"payment-service", "audit-service"}
+
+    # Also verify the Celery worker task for HW-04
+    from workers.tasks.diagram import evaluate_architecture_drift_task
+    celery_result = evaluate_architecture_drift_task(
+        organization_id="snapmeet",
+        code_imported_services=["analytics-db", "auth-service"],
+        diagram_documented_services=["auth-service"],
+        task_key="AUTH-101",
+    )
+    assert celery_result["rule_id"] == "HW-04"
+    assert celery_result["triggered"] is True
+    assert "analytics-db" in celery_result["affected_entities"]
+
+
+

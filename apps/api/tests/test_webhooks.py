@@ -194,6 +194,7 @@ def test_linear_webhook_missing_or_invalid_signature():
 
 
 def test_gitlab_webhook_accepted():
+    settings = get_settings()
     payload = {
         "object_kind": "merge_request",
         "project": {"name": "billing-service", "path_with_namespace": "snapmeet/billing-service"},
@@ -203,10 +204,37 @@ def test_gitlab_webhook_accepted():
         response = client.post(
             "/api/v1/webhooks/gitlab/snapmeet",
             json=payload,
-            headers={"X-Gitlab-Event": "Merge Request Hook"},
+            headers={
+                "X-Gitlab-Event": "Merge Request Hook",
+                "X-Gitlab-Token": settings.GITLAB_WEBHOOK_SECRET,
+            },
         )
         assert response.status_code == 202
         data = response.json()
         assert data["status"] == "accepted"
         assert data["provider"] == "gitlab"
         mock_send.assert_called_once()
+
+
+def test_gitlab_webhook_missing_or_invalid_token():
+    payload = {"object_kind": "push"}
+
+    # Missing X-Gitlab-Token
+    res_missing = client.post(
+        "/api/v1/webhooks/gitlab/snapmeet",
+        json=payload,
+        headers={"X-Gitlab-Event": "Push Hook"},
+    )
+    assert res_missing.status_code == 401
+
+    # Invalid X-Gitlab-Token
+    res_invalid = client.post(
+        "/api/v1/webhooks/gitlab/snapmeet",
+        json=payload,
+        headers={
+            "X-Gitlab-Event": "Push Hook",
+            "X-Gitlab-Token": "invalid_token_999",
+        },
+    )
+    assert res_invalid.status_code == 401
+

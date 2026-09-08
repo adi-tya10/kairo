@@ -8,8 +8,8 @@
 
 ## 1. Testing Pyramid Distribution
 
-* **Unit Tests (70%):** State machine, anomaly rules (`HW-01`..`HW-05`), evidence ranker, diagram spatial math.
-* **Integration Tests (20%):** Testcontainers PostgreSQL + Neo4j AuraDB transactional tests, Celery task execution.
+* **Unit Tests (70%):** State machine, anomaly rules (`HW-01`..`HW-05`), evidence ranker, diagram spatial math, semantic vector similarity preservation.
+* **Integration & Security Tests (20%):** Multi-tenant isolation verification across Chat RAG and Context Work-Items, distributed Redis-backed rate limiting across multi-replica instances, Celery webhook pipelines, and PostgreSQL + Neo4j transactional sync.
 * **End-to-End Tests (10%):** Playwright automated browser flows covering the handoff briefing dashboard and interactive Q&A.
 
 ---

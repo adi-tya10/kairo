@@ -14,6 +14,6 @@ COPY apps/api/ apps/api/
 COPY packages/ packages/
 COPY workers/ workers/
 
-ENV PYTHONPATH="/"
+ENV PYTHONPATH="/app"
 
 CMD ["celery", "-A", "workers.celery_app", "worker", "--loglevel=info"]

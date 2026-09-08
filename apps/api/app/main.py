@@ -5,7 +5,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from apps.api.app.api.v1.router import api_v1_router
 from apps.api.app.core.config import get_settings
-from apps.api.app.core.database import check_database_health
+from apps.api.app.core.database import (
+    check_database_health,
+    check_neo4j_health,
+    check_redis_health,
+)
 from apps.api.app.core.errors import KairoError, kairo_exception_handler
 from apps.api.app.core.logging import get_logger
 
@@ -15,20 +19,33 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup Database Health Check
+    # Comprehensive Startup Infrastructure Health Checks
     logger.info(f"Starting {settings.APP_NAME} in environment: {settings.APP_ENV}")
     db_healthy = await check_database_health()
+    redis_healthy = await check_redis_health()
+    neo4j_healthy = await check_neo4j_health()
+
     if not db_healthy:
         if settings.APP_ENV == "production":
-            logger.critical(
-                "FATAL: Database health check failed in production! Host is unreachable."
-            )
-            raise RuntimeError(
-                "Production startup failure: Database health check failed. Ensure database host is reachable."
-            )
-
+            logger.critical("FATAL: Database health check failed in production! Host unreachable.")
+            raise RuntimeError("Production startup failure: Database health check failed.")
         else:
             logger.warning("Database is unreachable; continuing in development mode.")
+
+    if not redis_healthy:
+        if settings.APP_ENV == "production":
+            logger.critical("FATAL: Redis health check failed in production! Host unreachable.")
+            raise RuntimeError("Production startup failure: Redis health check failed.")
+        else:
+            logger.warning("Redis is unreachable; distributed rate limiter running in fallback mode.")
+
+    if not neo4j_healthy:
+        if settings.APP_ENV == "production":
+            logger.critical("FATAL: Neo4j AuraDB health check failed in production! Host unreachable.")
+            raise RuntimeError("Production startup failure: Neo4j health check failed.")
+        else:
+            logger.warning("Neo4j AuraDB is unreachable; continuing in development mode.")
+
     yield
     logger.info("Shutting down KAIRO API server.")
 

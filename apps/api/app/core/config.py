@@ -1,6 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ROOT_ENV = Path(__file__).resolve().parent.parent.parent.parent.parent / ".env"
@@ -51,6 +52,48 @@ class Settings(BaseSettings):
     LINEAR_WEBHOOK_SECRET: str = "kairo_linear_webhook_secret_local"
     GITLAB_WEBHOOK_SECRET: str = "kairo_gitlab_webhook_secret_local"
     SLACK_WEBHOOK_URL: str = ""
+
+    @model_validator(mode="after")
+    def validate_production_configuration(self) -> "Settings":
+        """
+        Enforces strict fail-fast validation in production mode:
+        Rejects insecure default keys, wildcard CORS, or missing critical credentials.
+        """
+        if self.APP_ENV.lower() == "production":
+            insecure_keys = [
+                "kairo-development-secret-key-change-in-production",
+                "secret",
+                "changeme",
+                "your-secret-key-change-this-in-prod",
+            ]
+            if self.SECRET_KEY in insecure_keys or len(self.SECRET_KEY) < 32:
+                raise ValueError("SECRET_KEY must be a cryptographically secure random string (>=32 chars) in production.")
+
+            if "*" in self.CORS_ORIGINS:
+                raise ValueError("Wildcard '*' CORS_ORIGINS is forbidden in production.")
+
+            if not self.SUPABASE_URL or not self.SUPABASE_SERVICE_ROLE_KEY:
+                raise ValueError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required in production.")
+
+            if not self.NEO4J_URI or not self.NEO4J_USER or not self.NEO4J_PASSWORD:
+                raise ValueError("NEO4J_URI, NEO4J_USER, and NEO4J_PASSWORD are required in production.")
+
+            if self.NEO4J_PASSWORD == "kairo_password":
+                raise ValueError("Insecure default NEO4J_PASSWORD is forbidden in production.")
+
+            if not self.REDIS_URL:
+                raise ValueError("REDIS_URL is required in production for rate limiting and Celery.")
+
+            if self.GITHUB_WEBHOOK_SECRET == "kairo_github_webhook_secret_local":
+                raise ValueError("Default GITHUB_WEBHOOK_SECRET is forbidden in production.")
+            if self.JIRA_WEBHOOK_SECRET == "kairo_jira_webhook_secret_local":
+                raise ValueError("Default JIRA_WEBHOOK_SECRET is forbidden in production.")
+            if self.LINEAR_WEBHOOK_SECRET == "kairo_linear_webhook_secret_local":
+                raise ValueError("Default LINEAR_WEBHOOK_SECRET is forbidden in production.")
+            if self.GITLAB_WEBHOOK_SECRET == "kairo_gitlab_webhook_secret_local":
+                raise ValueError("Default GITLAB_WEBHOOK_SECRET is forbidden in production.")
+
+        return self
 
 
 @lru_cache

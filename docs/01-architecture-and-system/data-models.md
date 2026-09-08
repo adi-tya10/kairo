@@ -8,9 +8,9 @@
 
 ## 1. Dual-Store Storage Strategy
 
-* **PostgreSQL (Supabase):** Manages relational metadata, multi-tenant isolation, user sessions, raw audit logs, and dense vector embeddings (`pgvector`) for semantic chunk search.
+* **PostgreSQL (Supabase):** Manages relational metadata, multi-tenant isolation, user sessions, credentials, enterprise identity (teams, memberships, invitations, devices, external handle mappings), raw audit logs, and dense vector embeddings (`pgvector`) for semantic chunk search.
 * **Neo4j AuraDB:** Stores entity topology, multidirectional dependencies, ownership changes, temporal validity windows, and decision lineage `(Decision)-[:SUPERSEDES]->(OldChoice)`.
-* **JSON File Store & Dynamic Tenant Registry:** Provides local stateful tenant credentials and organization service registries (`apps/db/users_store.json`) for seamless zero-cloud local testing and standalone runtime.
+* **Data Migration Utility:** Legacy JSON data stores are migrated to PostgreSQL using `scripts/migrate_json_to_postgres.py` with idempotent upserting and `--dry-run` simulation support.
 
 ---
 

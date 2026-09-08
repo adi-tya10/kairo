@@ -54,13 +54,23 @@ async def dispatch_alert(
     dispatched = False
 
     if target_url:
-        try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                res = await client.post(target_url, json=formatted_card)
-                dispatched = res.status_code == 200
-        except Exception as exc:
-            logger.warning(f"Failed to post Slack alert to {target_url}: {exc}")
-            dispatched = False
+        import asyncio
+        for attempt in range(3):
+            try:
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    res = await client.post(target_url, json=formatted_card)
+                    if res.status_code == 200:
+                        dispatched = True
+                        break
+                    logger.warning(
+                        f"Slack alert webhook returned status {res.status_code} (attempt {attempt + 1}/3)"
+                    )
+            except Exception as exc:
+                logger.error(
+                    f"Slack alert POST failed to {target_url} (attempt {attempt + 1}/3): {exc}"
+                )
+            if attempt < 2:
+                await asyncio.sleep(0.1 * (attempt + 1))
     else:
         # Default success in testing / development when no live external webhook URL is specified
         dispatched = True

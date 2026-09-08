@@ -156,7 +156,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 # Terminal 2: Celery Background Worker
 cd workers
-celery -A celery_app worker --loglevel=info --concurrency=4
+celery -A celery_app worker --loglevel=info -Q ingest,embeddings,alerts,diagram --concurrency=4
 
 # Terminal 3: Frontend Web Dashboard (Next.js)
 cd apps/web
@@ -174,21 +174,28 @@ pnpm dev
 
 | Variable Name | Required | Default / Format | Description |
 | :--- | :---: | :--- | :--- |
-| `ENVIRONMENT` | Yes | `development` \| `staging` \| `production` | Deployment runtime target. |
-| `API_PORT` | No | `8000` | Port for FastAPI backend service. |
-| `WEB_PORT` | No | `3000` | Port for Next.js frontend application. |
-| `SECRET_KEY` | Yes | High-entropy hex string (`openssl rand -hex 32`) | JWT signature validation & AES encryption key. |
+| `APP_ENV` | Yes | `development` \| `staging` \| `production` | Deployment runtime target. In production, fail-fast validations are enforced. |
+| `SECRET_KEY` | Yes | High-entropy hex string (`openssl rand -hex 32`) | JWT signature validation & AES encryption key (min 32 chars). |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | No | `1440` (24h) | JWT expiration lifetime in minutes. |
+| `DATABASE_URL` | Yes | `postgresql://postgres:<pwd>@<host>:5432/postgres` | PostgreSQL connection string for DDL, migrations, and event storage. |
 | `SUPABASE_URL` | Yes | `https://<ref>.supabase.co` | Supabase project API gateway endpoint. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | `eyJhbGciOi...` | Supabase privileged service role API key. |
-| `DATABASE_URL` | Yes | `postgresql://postgres:<pwd>@<host>:5432/postgres` | PostgreSQL connection string for DDL/migrations. |
-| `NEO4J_URI` | Yes | `neo4j+s://<instance>.databases.neo4j.io` | Neo4j AuraDB Bolt connection URI. |
-| `NEO4J_USERNAME` | Yes | `neo4j` | Neo4j database username. |
+| `NEO4J_URI` | Yes | `bolt://localhost:7687` \| `neo4j+s://...` | Neo4j AuraDB Bolt connection URI. |
+| `NEO4J_USER` | Yes | `neo4j` | Neo4j database username. |
 | `NEO4J_PASSWORD` | Yes | `<secure-password>` | Neo4j database authentication password. |
-| `REDIS_URL` | Yes | `rediss://default:<token>@<host>.upstash.io:6379` | Upstash Redis connection string for Celery broker. |
-| `GEMINI_API_KEY` | Conditional | `AIzaSy...` | Google Gemini Pro/Flash API key for synthesis. |
-| `ANTHROPIC_API_KEY` | Conditional | `sk-ant-...` | Anthropic Claude API key for fallback reasoning. |
-| `GITHUB_WEBHOOK_SECRET` | Yes | High-entropy secret string | Secret for HMAC-SHA256 signature verification. |
-| `SLACK_SIGNING_SECRET` | Yes | Slack app signing secret | Secret for Slack Events API signature validation. |
+| `REDIS_URL` | Yes | `redis://localhost:6379/0` \| `rediss://...` | Redis connection string for distributed rate limiter and Celery broker/backend. |
+| `GITHUB_WEBHOOK_SECRET` | Yes | High-entropy secret string | Secret for GitHub HMAC-SHA256 signature verification (`X-Hub-Signature-256`). |
+| `JIRA_WEBHOOK_SECRET` | Yes | High-entropy secret string | Secret for Jira webhook signature verification (`X-Hub-Signature`). |
+| `LINEAR_WEBHOOK_SECRET` | Yes | High-entropy secret string | Secret for Linear HMAC-SHA256 signature verification (`Linear-Signature`). |
+| `GITLAB_WEBHOOK_SECRET` | Yes | High-entropy secret string | Secret token for GitLab webhook verification (`X-Gitlab-Token`). |
+| `SLACK_WEBHOOK_URL` | No | `https://hooks.slack.com/services/...` | Incoming Slack webhook URL for alerts and handoff digests. |
+| `GROQ_API_KEY` | Conditional | `gsk_...` | Groq high-speed inference API key. |
+| `GEMINI_API_KEY` | Conditional | `AIzaSy...` | Google Gemini Pro/Flash & text-embedding-004 API key. |
+| `OPENAI_API_KEY` | Conditional | `sk-proj-...` | OpenAI API key for GPT models & text-embedding-3-small. |
+| `LLM_MODEL_NAME` | No | `gemini-1.5-pro` | Model identifier for grounded synthesis. |
+| `LLM_TEMPERATURE` | No | `0.1` | LLM generation temperature (default 0.1 for deterministic synthesis). |
+| `CORS_ORIGINS` | No | `["http://localhost:3000","http://localhost:1420","tauri://localhost"]` | Allowed CORS origins JSON list (wildcard forbidden in production). |
+| `NEXT_PUBLIC_API_URL` | No | `http://localhost:8000` | Frontend backend API URL target. |
 
 ---
 

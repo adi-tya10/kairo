@@ -31,3 +31,13 @@ flowchart LR
 ```
 
 All webhook payloads return `202 Accepted` immediately upon cryptographic validation and are processed asynchronously by Celery workers to maintain sub-20ms ingress latency.
+
+---
+
+## 3. Cryptographic Rejection Contracts (Negative Paths)
+
+Every webhook ingress endpoint enforces fail-closed cryptographic validation before reading or parsing payload contents:
+
+* **Missing Signature / Token:** Returns `HTTP 401 Unauthorized` (`detail: "Unauthorized webhook: Missing <header>"`).
+* **Invalid / Tampered Signature:** Returns `HTTP 401 Unauthorized` (`detail: "Unauthorized webhook: <Provider> HMAC signature verification failed"`).
+* **Timing Attack Prevention:** All signature and token comparisons use constant-time `hmac.compare_digest`.

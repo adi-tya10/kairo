@@ -224,3 +224,86 @@ def test_llm_service_fallback_intent_branches() -> None:
     res_empty = LLMService._synthesize_grounded_fallback("Random unrelated question", "snapmeet/billing-service", [])
     assert "snapmeet/billing-service" in res_empty
 
+
+def test_explicit_tenant_isolation_chat_and_context() -> None:
+    """
+    Comprehensive Tenant Isolation Integration Test:
+    Proves that a user from Org Alpha cannot retrieve, see, or leak ANY data,
+    work items, or chat context belonging to Org Beta.
+    """
+    token_alpha = create_access_token({
+        "sub": "usr_alpha_dev",
+        "org_id": "org_alpha",
+        "email": "dev@alpha.com",
+        "name": "Alpha Developer",
+        "is_org_admin": False,
+        "allowed_repos": ["org_alpha/repo-alpha"],
+    })
+
+    token_beta = create_access_token({
+        "sub": "usr_beta_dev",
+        "org_id": "org_beta",
+        "email": "dev@beta.com",
+        "name": "Beta Developer",
+        "is_org_admin": False,
+        "allowed_repos": ["org_beta/repo-beta"],
+    })
+
+    confidential_beta_ticket = "BETA-CONFIDENTIAL-999"
+    confidential_beta_secret = "TopSecretBetaRevenueLeak999"
+
+    # 1. Org Alpha user attempts to query Org Beta repo via Chat API -> Must be rejected with 403
+    res_cross_chat = client.post(
+        "/api/v1/chat/query",
+        headers={"Authorization": f"Bearer {token_alpha}"},
+        json={
+            "organization_id": "org_beta",
+            "repo_id": "org_beta/repo-beta",
+            "query": f"What is {confidential_beta_ticket}?",
+        },
+    )
+    assert res_cross_chat.status_code == 403
+    assert confidential_beta_secret not in res_cross_chat.text
+
+    # 2. Org Alpha user queries their own authorized repository -> Must contain ZERO Org Beta data
+    res_own_chat = client.post(
+        "/api/v1/chat/query",
+        headers={"Authorization": f"Bearer {token_alpha}"},
+        json={
+            "organization_id": "org_alpha",
+            "repo_id": "org_alpha/repo-alpha",
+            "query": f"Tell me about {confidential_beta_ticket} and financial data",
+        },
+    )
+    assert res_own_chat.status_code == 200
+    chat_data = res_own_chat.json()
+    assert confidential_beta_secret not in str(chat_data)
+    assert confidential_beta_ticket not in str(chat_data.get("citations", []))
+
+    # 3. Org Alpha user attempts to fetch Org Beta's work item from /context/work-items/{id}
+    # Case A: Specifying Org Beta repo -> 403 Forbidden
+    res_cross_context = client.get(
+        f"/api/v1/context/work-items/{confidential_beta_ticket}?repo_id=org_beta/repo-beta",
+        headers={"Authorization": f"Bearer {token_alpha}"},
+    )
+    assert res_cross_context.status_code == 403
+
+    # Case B: Specifying own repo -> Scoped only to Org Alpha, cannot leak Org Beta's confidential payload
+    res_spoofed_context = client.get(
+        f"/api/v1/context/work-items/{confidential_beta_ticket}?repo_id=org_alpha/repo-alpha",
+        headers={"Authorization": f"Bearer {token_alpha}"},
+    )
+    assert res_spoofed_context.status_code == 200
+    context_data = res_spoofed_context.json()
+    assert confidential_beta_secret not in str(context_data)
+    assert context_data["linked_commits"] == []
+
+    # 4. Legitimate Org Beta user querying their own repo context is authorized
+    res_beta_legit = client.get(
+        f"/api/v1/context/work-items/{confidential_beta_ticket}?repo_id=org_beta/repo-beta",
+        headers={"Authorization": f"Bearer {token_beta}"},
+    )
+    assert res_beta_legit.status_code == 200
+    assert res_beta_legit.json()["status"] == "authorized"
+
+

@@ -16,7 +16,7 @@ COPY apps/api/ apps/api/
 COPY packages/ packages/
 COPY workers/ workers/
 
-ENV PYTHONPATH="/"
+ENV PYTHONPATH="/app"
 EXPOSE 8000
 
 CMD ["uvicorn", "apps.api.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
