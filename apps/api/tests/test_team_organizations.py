@@ -10,8 +10,8 @@ from apps.api.app.main import app
 class MockTableQuery:
     def __init__(self, storage: dict[str, dict]):
         self.storage = storage
-        self._selected_id = None
-        self._insert_data = None
+        self._selected_id: str | None = None
+        self._insert_data: dict | None = None
 
     def select(self, *args, **kwargs):
         return self

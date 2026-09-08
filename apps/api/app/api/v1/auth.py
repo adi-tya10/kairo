@@ -203,6 +203,8 @@ async def register_organization(
         "allowed_repos": user_data["allowed_repos"],
     })
 
+    reg_raw = user_data.get("allowed_repos")
+    reg_repos: list[Any] = reg_raw if isinstance(reg_raw, list) else []
     return AuthResponse(
         access_token=token,
         token_type="bearer",
@@ -212,7 +214,7 @@ async def register_organization(
         organization_id=str(user_data["organization_id"]),
         company_name=str(user_data["company_name"]),
         is_org_admin=bool(user_data["is_org_admin"]),
-        allowed_repos=[str(r) for r in user_data["allowed_repos"]],
+        allowed_repos=[str(r) for r in reg_repos],
     )
 
 
@@ -269,6 +271,8 @@ async def login_user(
         "allowed_repos": user_record["allowed_repos"],
     })
 
+    login_raw = user_record.get("allowed_repos")
+    login_repos: list[Any] = login_raw if isinstance(login_raw, list) else []
     return AuthResponse(
         access_token=token,
         token_type="bearer",
@@ -278,7 +282,7 @@ async def login_user(
         organization_id=str(user_record["organization_id"]),
         company_name=str(user_record["company_name"]),
         is_org_admin=bool(user_record["is_org_admin"]),
-        allowed_repos=[str(r) for r in user_record["allowed_repos"]],
+        allowed_repos=[str(r) for r in login_repos],
     )
 
 

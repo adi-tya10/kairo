@@ -1,3 +1,4 @@
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -19,7 +20,7 @@ settings = get_settings()
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Comprehensive Startup Infrastructure Health Checks
     logger.info(f"Starting {settings.APP_NAME} in environment: {settings.APP_ENV}")
     db_healthy = await check_database_health()

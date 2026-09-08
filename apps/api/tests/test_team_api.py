@@ -80,7 +80,8 @@ class MockTableQuery:
                 matched.append(r)
 
         if self._order_by:
-            matched.sort(key=lambda x: str(x.get(self._order_by, "")), reverse=self._desc)
+            order_field = self._order_by
+            matched.sort(key=lambda x: str(x.get(order_field, "")), reverse=self._desc)
 
         res.data = matched
         return res

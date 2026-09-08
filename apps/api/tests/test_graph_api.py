@@ -6,6 +6,7 @@ The get_graph_db dependency is overridden via app.dependency_overrides so that
 the route under test receives a controllable MagicMock session.
 """
 from contextlib import contextmanager
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -23,7 +24,7 @@ client = TestClient(app)
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _make_mock_session(records: list[dict]) -> MagicMock:
+def _make_mock_session(records: list[Any]) -> MagicMock:
     """Build a MagicMock Neo4j session whose .run() returns the given records."""
     mock_session = MagicMock()
     mock_session.run.return_value = records

@@ -30,7 +30,7 @@ jobs:
 
       - name: Run Mypy Typecheck
         run: |
-          mypy apps/api packages workers scripts --ignore-missing-imports --explicit-package-bases
+          mypy --config-file pyproject.toml apps packages workers
 
       - name: Run Backend Pytest Suite
         env:
