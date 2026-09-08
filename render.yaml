@@ -1,0 +1,75 @@
+services:
+  # =========================================================================
+  # 1. KAIRO FastAPI Backend Gateway & Embedded Background Worker
+  # =========================================================================
+  - type: web
+    name: kairo-api
+    runtime: docker
+    dockerfilePath: apps/api/Dockerfile
+    dockerContext: .
+    plan: free
+    region: oregon
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_NAME
+        value: "KAIRO Engine API"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "1440"
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: NEO4J_URI
+        sync: false
+      - key: NEO4J_USER
+        sync: false
+      - key: NEO4J_PASSWORD
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: GITHUB_WEBHOOK_SECRET
+        generateValue: true
+      - key: JIRA_WEBHOOK_SECRET
+        generateValue: true
+      - key: LINEAR_WEBHOOK_SECRET
+        generateValue: true
+      - key: GITLAB_WEBHOOK_SECRET
+        generateValue: true
+      - key: GROQ_API_KEY
+        sync: false
+      - key: SMTP_HOST
+        value: smtp-relay.brevo.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM_EMAIL
+        value: "adityaeeshan5230@gmail.com"
+      - key: SMTP_FROM_NAME
+        value: "KAIRO Team"
+      - key: WEB_APP_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+
+  # =========================================================================
+  # 2. KAIRO Next.js 14 Company Administrative Web Portal
+  # =========================================================================
+  - type: web
+    name: kairo-web
+    runtime: docker
+    dockerfilePath: apps/web/Dockerfile
+    dockerContext: .
+    plan: free
+    region: oregon
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        sync: false

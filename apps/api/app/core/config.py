@@ -1,7 +1,9 @@
+import json
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
-from pydantic import model_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ROOT_ENV = Path(__file__).resolve().parent.parent.parent.parent.parent / ".env"
@@ -24,6 +26,22 @@ class Settings(BaseSettings):
 
     # CORS
     CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:1420", "tauri://localhost"]
+
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v: Any) -> list[str]:
+        """Support both JSON array syntax and comma-separated string from deployment environments."""
+        if isinstance(v, str):
+            trimmed = v.strip()
+            if trimmed.startswith("[") and trimmed.endswith("]"):
+                try:
+                    parsed = json.loads(trimmed)
+                    if isinstance(parsed, list):
+                        return [str(item).strip() for item in parsed if str(item).strip()]
+                except Exception:
+                    pass
+            return [origin.strip() for origin in trimmed.split(",") if origin.strip()]
+        return v
 
     # Supabase / PostgreSQL
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/kairo"
