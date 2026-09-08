@@ -155,7 +155,7 @@ function AuthPageContent() {
 
         const data = await res.json();
         localStorage.setItem("kairo_jwt_token", data.access_token);
-        router.push("/dashboard");
+        router.push("/download?onboarding=true");
       } else if (mode === "login") {
         const res = await fetch(`${API_BASE}/auth/login`, {
           method: "POST",

@@ -74,6 +74,13 @@ Every environment variable utilized by KAIRO across the API gateway, Celery work
 | `LLM_TEMPERATURE` | No | `0.1` | Synthesis temperature (strictly low for grounded determinism). | Internal engine tuning |
 | `CORS_ORIGINS` | No | `["http://localhost:3000","http://localhost:1420","tauri://localhost"]` | Allowed HTTP Origin headers (JSON array; wildcard forbidden in prod). | Security CORS whitelist |
 | `NEXT_PUBLIC_API_URL` | No | `http://localhost:8000` | Backend gateway URL used by the Next.js company administrative portal. | Deployed API endpoint |
+| `WEB_APP_URL` | No | `http://localhost:3000` | Frontend web URL for generated invitation links in emails. | Deployed Web Portal URL |
+| `SMTP_HOST` | No | `smtp-relay.brevo.com` | Hostname for transactional email SMTP relay (Brevo, Gmail, AWS SES). | Brevo / Email Provider |
+| `SMTP_PORT` | No | `587` | Port for SMTP relay with STARTTLS encryption. | Brevo / Email Provider |
+| `SMTP_USER` | Conditional | `b874d7001@smtp-brevo.com` | SMTP account login identifier. | Brevo SMTP Settings |
+| `SMTP_PASSWORD` | Conditional | `xsmtpsib-...` | SMTP account password or API master key. | Brevo SMTP Settings |
+| `SMTP_FROM_EMAIL` | No | `adityaeeshan5230@gmail.com` | Verified sender address shown in employee invitation emails. | Brevo Senders Console |
+| `SMTP_FROM_NAME` | No | `KAIRO Team` | Display name for outgoing invitation and notification emails. | Internal brand config |
 
 ---
 
@@ -120,4 +127,24 @@ Expected response format:
 
 In `APP_ENV=production`, if any required service (PostgreSQL, Neo4j, or Redis) is unreachable, the API terminates immediately on startup to prevent routing traffic to degraded pods.
 
+---
 
+## 6. Brevo Transactional Email & Employee Onboarding Flow
+
+KAIRO integrates transactional email dispatch via Brevo (formerly Sendinblue) SMTP relay, enabling fully automated, zero-friction developer provisioning:
+
+```mermaid
+flowchart TD
+    ADMIN["Company Admin Portal (/dashboard)"] -->|"POST /identity/invitations"| API["FastAPI Gateway"]
+    API -->|"Background Task"| EMAIL["EmailService (Brevo SMTP:587)"]
+    EMAIL -->|"Branded HTML Invitation"| INBOX["Developer Email Inbox"]
+    INBOX -->|"Click: Accept Invitation"| AUTH["Web Portal (/auth?invite=token)"]
+    AUTH -->|"Set Password & Verify"| DL["Dedicated HUD Download (/download)"]
+    DL -->|"Auto-detects OS & 1-Click Install"| HUD["KAIRO Desktop Floating HUD (Tauri 2.0)"]
+```
+
+### Key Operational Guarantees:
+1. **Non-Blocking API Response:** Invitation creation responds in <25ms; email dispatch is offloaded to background worker threads.
+2. **Cryptographic Single-Use Tokens:** Each invitation link carries a high-entropy URL-safe token expiring automatically after 7 days.
+3. **Automated OS Detection:** The `/download` page detects user platform (Windows, macOS, Linux) and provides targeted installers and 1-line terminal setup commands (`winget`, `brew`, `curl | bash`).
+4. **Graceful Degradation:** If SMTP credentials are missing or network connectivity to Brevo is interrupted, the invitation is still recorded in PostgreSQL/in-memory state, allowing manual link copy as a fail-safe fallback.

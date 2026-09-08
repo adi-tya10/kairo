@@ -465,7 +465,7 @@ export default function DashboardPage() {
       if (res.ok) {
         const inv = await res.json();
         setInvitationsList((prev) => [...prev, inv]);
-        setInviteSuccessMsg(`Invitation created! Token: ${inv.token}`);
+        setInviteSuccessMsg(`Invitation created & email dispatched to ${inviteEmail.trim()}!`);
         setInviteEmail("");
         setInviteName("");
       }

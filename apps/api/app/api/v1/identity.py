@@ -1,11 +1,12 @@
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from supabase import Client
 
 from apps.api.app.core.database import get_db
 from apps.api.app.core.security import create_access_token, get_current_user
+from apps.api.app.services.email_service import EmailService
 from apps.api.app.services.identity_service import IdentityService
 from packages.schemas.identity import (
     Device,
@@ -95,9 +96,10 @@ async def add_member_to_team(
 @router.post("/identity/invitations", response_model=Invitation, status_code=status.HTTP_201_CREATED)
 async def create_invitation(
     inv_in: InvitationCreate,
+    background_tasks: BackgroundTasks,
     profile: Annotated[UserPermissionProfile, Depends(get_current_user)],
 ) -> Invitation:
-    return IdentityService.create_invitation(
+    invitation = IdentityService.create_invitation(
         organization_id=profile.organization_id,
         email=inv_in.email,
         name=inv_in.name,
@@ -105,6 +107,28 @@ async def create_invitation(
         role=inv_in.role,
         allowed_repos=inv_in.allowed_repos or profile.allowed_repo_ids,
     )
+
+    # Determine team name for email context
+    team_name: str | None = None
+    if inv_in.team_id:
+        teams = IdentityService.list_teams(profile.organization_id)
+        for t in teams:
+            if t.id == inv_in.team_id:
+                team_name = t.name
+                break
+
+    # Dispatch email in background task (non-blocking for API caller)
+    background_tasks.add_task(
+        EmailService.send_invitation_email,
+        to_email=invitation.email,
+        recipient_name=invitation.name,
+        organization_id=profile.organization_id,
+        team_name=team_name,
+        role=invitation.role.value if hasattr(invitation.role, "value") else str(invitation.role),
+        invite_token=invitation.token,
+    )
+
+    return invitation
 
 
 @router.get("/identity/invitations", response_model=list[Invitation], status_code=status.HTTP_200_OK)

@@ -53,6 +53,15 @@ class Settings(BaseSettings):
     GITLAB_WEBHOOK_SECRET: str = "kairo_gitlab_webhook_secret_local"
     SLACK_WEBHOOK_URL: str = ""
 
+    # SMTP / Transactional Email (Brevo / Gmail / Standard Relay)
+    SMTP_HOST: str = "smtp-relay.brevo.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = "adityaeeshan5230@gmail.com"
+    SMTP_FROM_NAME: str = "KAIRO Team"
+    WEB_APP_URL: str = "http://localhost:3000"
+
     @model_validator(mode="after")
     def validate_production_configuration(self) -> "Settings":
         """
