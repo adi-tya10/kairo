@@ -75,3 +75,49 @@ Every environment variable utilized by KAIRO across the API gateway, Celery work
 | `CORS_ORIGINS` | No | `["http://localhost:3000","http://localhost:1420","tauri://localhost"]` | Allowed HTTP Origin headers (JSON array; wildcard forbidden in prod). | Security CORS whitelist |
 | `NEXT_PUBLIC_API_URL` | No | `http://localhost:8000` | Backend gateway URL used by the Next.js company administrative portal. | Deployed API endpoint |
 
+---
+
+## 4. Upstash Serverless Redis & Celery Configuration
+
+KAIRO uses Redis for two critical production responsibilities:
+1. **Distributed Sliding-Window Rate Limiting (`apps/api/app/api/v1/auth.py`):** Protects authentication endpoints (`/api/v1/auth/login`, `/api/v1/auth/register`) against brute-force attacks across multi-replica container deployments using Redis Sorted Sets (`ZSET`).
+2. **Celery Asynchronous Task Broker & Result Store (`workers/celery_app.py`):** Dispatches and queues webhook ingestion, OCR diagram parsing, Slack alert cards, and embedding calculations across 4 dedicated queues (`ingest`, `embeddings`, `alerts`, `diagram`).
+
+### Connection String Format
+For cloud deployments (such as Upstash or AWS ElastiCache), TLS is mandatory:
+```bash
+REDIS_URL="rediss://default:<password>@<host>.upstash.io:6379"
+```
+
+### Production Hardening & Retention Settings
+* **Socket Timeouts:** Connection pool is configured with `socket_connect_timeout=5.0` and `socket_timeout=5.0` to prevent blocked worker threads during network blips.
+* **Task Result Expiration:** `result_expires=86400` (24 hours TTL) ensures old Celery task result keys are pruned automatically, preventing memory growth.
+* **Visibility Timeout:** `broker_transport_options={"visibility_timeout": 43200}` (12 hours) ensures long-running ingestion or backfill tasks are not redelivered prematurely.
+* **Key Namespacing:** Rate limiter keys follow `kairo:ratelimit:auth:{client_identifier}` with explicit TTL matching the rate limit window.
+
+---
+
+## 5. Production Health & Readiness Verification
+
+Before routing production traffic to KAIRO instances, verify that all dependencies are healthy:
+
+```bash
+# Verify API Health (Checks Supabase PostgreSQL, Redis, and Neo4j)
+curl -s http://localhost:8000/api/v1/health | jq .
+```
+
+Expected response format:
+```json
+{
+  "status": "healthy",
+  "dependencies": {
+    "supabase_postgresql": "operational",
+    "neo4j_auradb": "operational",
+    "redis": "operational"
+  }
+}
+```
+
+In `APP_ENV=production`, if any required service (PostgreSQL, Neo4j, or Redis) is unreachable, the API terminates immediately on startup to prevent routing traffic to degraded pods.
+
+
