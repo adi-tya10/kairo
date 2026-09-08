@@ -18,6 +18,7 @@ import {
   FolderGit2,
   Lock,
 } from "lucide-react";
+import { API_BASE } from "../api-config";
 
 type OSType = "windows" | "macos" | "linux";
 
@@ -56,7 +57,7 @@ function DownloadContent() {
     let filename = "";
 
     const token = typeof window !== "undefined" ? localStorage.getItem("kairo_jwt_token") || "SESSION_TOKEN" : "SESSION_TOKEN";
-    const apiBase = typeof window !== "undefined" ? window.location.origin.replace(":3000", ":8000") + "/api/v1" : "http://localhost:8000/api/v1";
+    const apiBase = API_BASE;
 
     if (selectedOS === "windows") {
       filename = "install-kairo-hud.bat";

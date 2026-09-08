@@ -150,17 +150,8 @@ interface ConfiguredProject {
   status: "SYNCED" | "PAUSED";
 }
 
-const getApiBase = (): string => {
-  if (typeof process !== "undefined" && process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL;
-  }
-  if (typeof window !== "undefined" && window.location.hostname !== "localhost") {
-    return `${window.location.origin}/api/v1`;
-  }
-  return "http://localhost:8000/api/v1";
-};
+import { API_BASE } from "../api-config";
 
-const API_BASE = getApiBase();
 
 export default function DashboardPage() {
   const router = useRouter();

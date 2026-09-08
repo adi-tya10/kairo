@@ -25,7 +25,12 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
 
     # CORS
-    CORS_ORIGINS: list[str] | str = ["http://localhost:3000", "http://localhost:1420", "tauri://localhost"]
+    CORS_ORIGINS: list[str] | str = [
+        "https://kairo-web-91or.onrender.com",
+        "http://localhost:3000",
+        "http://localhost:1420",
+        "tauri://localhost",
+    ]
 
     @field_validator("CORS_ORIGINS", mode="after")
     @classmethod

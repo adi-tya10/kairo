@@ -20,8 +20,7 @@ import {
   Terminal,
   ChevronDown,
 } from "lucide-react";
-
-const API_BASE = "http://localhost:8000/api/v1";
+import { API_BASE } from "../api-config";
 
 const TYPING_PHRASES = [
   "Resolving ground truth for active development work items...",

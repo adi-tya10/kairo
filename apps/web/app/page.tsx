@@ -61,6 +61,7 @@ import {
   Share2,
   Key,
 } from "lucide-react";
+import { API_BASE } from "./api-config";
 
 export default function LandingPage() {
   const [authToken, setAuthToken] = useState<string | null>(null);
@@ -87,7 +88,7 @@ export default function LandingPage() {
     if (token) {
       setAuthToken(token);
       try {
-        fetch("http://localhost:8000/api/v1/auth/me", {
+        fetch(`${API_BASE}/auth/me`, {
           headers: { Authorization: `Bearer ${token}` },
         })
           .then((r) => r.json())
@@ -1084,7 +1085,7 @@ export default function LandingPage() {
             <h4 className="font-bold text-white text-xs uppercase tracking-wider font-mono">Developer Resources</h4>
             <ul className="space-y-2 text-[#94A3B8]">
               <li>
-                <a href="http://localhost:8000/docs" target="_blank" rel="noreferrer" className="hover:text-white flex items-center gap-1">
+                <a href={API_BASE.replace(/\/api\/v1$/, "") + "/docs"} target="_blank" rel="noreferrer" className="hover:text-white flex items-center gap-1">
                   <span>FastAPI OpenAPI Specs</span>
                   <ExternalLink size={11} />
                 </a>

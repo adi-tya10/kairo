@@ -32,11 +32,14 @@ class EmailService:
     ) -> str:
         name_display = recipient_name if recipient_name else "there"
         logo_url = "https://raw.githubusercontent.com/adi-tya10/kairo/main/apps/web/public/kairo.png"
-        team_row = (
+
+        team_stub_row = (
             f"""
             <tr>
-              <td style="padding: 8px 0; color: #94A3B8; font-size: 13px;">Assigned Team:</td>
-              <td style="padding: 8px 0; color: #F8FAFC; font-size: 13px; font-weight: 600; text-align: right;">{team_name}</td>
+              <td style="border-top: 1px dotted #57534E; padding-top: 18px;">
+                <p style="margin: 0 0 3px; font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #A8A29E;">Team</p>
+                <p style="margin: 0 0 18px; font-size: 14px; font-weight: 700; color: #FFFDF9;">{team_name}</p>
+              </td>
             </tr>
             """
             if team_name
@@ -48,109 +51,163 @@ class EmailService:
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
+  <meta name="supported-color-schemes" content="light">
   <title>Invitation to join {organization_name} on KAIRO</title>
+  <!--[if mso]>
+  <noscript>
+    <xml>
+      <o:OfficeDocumentSettings>
+        <o:PixelsPerInch>96</o:PixelsPerInch>
+      </o:OfficeDocumentSettings>
+    </xml>
+  </noscript>
+  <![endif]-->
+  <style>
+    body, table, td, a {{ -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }}
+    table, td {{ mso-table-lspace: 0pt; mso-table-rspace: 0pt; }}
+    img {{ -ms-interpolation-mode: bicubic; border: 0; outline: none; text-decoration: none; }}
+    body {{ margin: 0; padding: 0; width: 100% !important; height: 100% !important; }}
+
+    @media only screen and (max-width: 620px) {{
+      .email-wrapper {{ padding: 32px 14px !important; }}
+      .mobile-full {{ width: 100% !important; max-width: 100% !important; }}
+      .ticket {{ width: 100% !important; }}
+      .stub-col {{ display: block !important; width: 100% !important; border-right: none !important; border-bottom: 2px dashed #F5F3EF !important; }}
+      .main-col {{ display: block !important; width: 100% !important; }}
+      .stub-pad {{ padding: 24px 22px 20px !important; }}
+      .main-pad {{ padding: 28px 22px !important; }}
+      .headline {{ font-size: 25px !important; }}
+      .cta-table {{ width: 100% !important; }}
+      .cta-link {{ display: block !important; width: 100% !important; box-sizing: border-box !important; text-align: center !important; }}
+    }}
+
+    @media only screen and (max-width: 380px) {{
+      .email-wrapper {{ padding: 24px 10px !important; }}
+      .stub-pad {{ padding: 20px 18px 16px !important; }}
+      .main-pad {{ padding: 22px 18px !important; }}
+      .headline {{ font-size: 22px !important; }}
+      .stub-role {{ font-size: 18px !important; }}
+      .lede {{ font-size: 13.5px !important; }}
+    }}
+  </style>
 </head>
-<body style="margin: 0; padding: 0; background-color: #030712; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #F8FAFC;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #030712; padding: 40px 16px;">
+<body style="margin: 0; padding: 0; background-color: #F5F3EF; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1C1917;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #F5F3EF;">
     <tr>
-      <td align="center">
-        <!-- Main Container -->
-        <table role="presentation" width="100%" style="max-width: 560px; background-color: #0F172A; border: 1px solid #1E293B; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);">
+      <td class="email-wrapper" align="center" style="padding: 56px 16px;">
 
-          <!-- Header Banner with Transparent Logo -->
+        <!-- Wordmark -->
+        <table role="presentation" class="mobile-full" width="640" cellspacing="0" cellpadding="0" style="width: 640px; max-width: 640px;">
           <tr>
-            <td style="padding: 32px 36px 24px; border-bottom: 1px solid #1E293B; background: linear-gradient(180deg, #1E293B 0%, #0F172A 100%);">
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
-                <tr>
-                  <td valign="middle" style="width: 44px;">
-                    <a href="{base_url}" target="_blank" style="text-decoration: none;">
-                      <img src="{logo_url}" alt="KAIRO Emblem" width="40" height="40" style="display: block; width: 40px; height: 40px; object-fit: contain; border: 0;" />
-                    </a>
-                  </td>
-                  <td valign="middle" style="padding-left: 12px;">
-                    <span style="font-size: 18px; font-weight: 800; color: #F8FAFC; letter-spacing: -0.02em; line-height: 1;">KAIRO</span>
-                    <div style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 4px; color: #60A5FA; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">
-                      Work Continuity
-                    </div>
-                  </td>
-                </tr>
-                <tr>
-                  <td colspan="2" style="padding-top: 18px;">
-                    <h1 style="margin: 0 0 6px; font-size: 22px; font-weight: 700; color: #F8FAFC; letter-spacing: -0.02em;">
-                      You've been invited to join {organization_name}
-                    </h1>
-                    <p style="margin: 0; font-size: 14px; color: #94A3B8;">
-                      Collaborate on code, eliminate context loss, and activate your desktop HUD.
-                    </p>
-                  </td>
-                </tr>
-              </table>
+            <td align="center" style="padding-bottom: 28px;">
+              <a href="{base_url}" target="_blank" style="text-decoration: none;">
+                <table role="presentation" cellspacing="0" cellpadding="0" style="display: inline-table;">
+                  <tr>
+                    <td valign="middle" style="padding-right: 9px;">
+                      <img src="{logo_url}" alt="KAIRO" width="22" height="22" style="display: block; width: 22px; height: 22px; max-width: 22px; object-fit: contain; border-radius: 5px;" />
+                    </td>
+                    <td valign="middle">
+                      <span style="font-size: 13px; font-weight: 800; letter-spacing: 0.22em; text-transform: uppercase; color: #1C1917;">KAIRO</span>
+                    </td>
+                  </tr>
+                </table>
+              </a>
             </td>
           </tr>
-
-          <!-- Content Body -->
-          <tr>
-            <td style="padding: 32px 36px;">
-              <p style="margin: 0 0 18px; font-size: 15px; line-height: 1.6; color: #E2E8F0;">
-                Hi <strong style="color: #F8FAFC;">{name_display}</strong>,
-              </p>
-              <p style="margin: 0 0 24px; font-size: 14px; line-height: 1.6; color: #94A3B8;">
-                You have been invited to join <strong style="color: #F8FAFC;">{organization_name}</strong> on KAIRO. With KAIRO, your in-flight commits, Jira tasks, and architecture decisions are automatically connected without manual status reports.
-              </p>
-
-              <!-- Details Box -->
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #0A0F1D; border: 1px solid #1E293B; border-radius: 8px; margin-bottom: 28px; padding: 16px 20px;">
-                <tr>
-                  <td style="padding: 8px 0; color: #94A3B8; font-size: 13px;">Organization:</td>
-                  <td style="padding: 8px 0; color: #F8FAFC; font-size: 13px; font-weight: 600; text-align: right;">{organization_name}</td>
-                </tr>
-                {team_row}
-                <tr>
-                  <td style="padding: 8px 0; color: #94A3B8; font-size: 13px;">Assigned Role:</td>
-                  <td style="padding: 8px 0; color: #38BDF8; font-size: 13px; font-weight: 600; text-align: right;">{role}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 0; color: #94A3B8; font-size: 13px;">Link Expiration:</td>
-                  <td style="padding: 8px 0; color: #F59E0B; font-size: 13px; font-weight: 500; text-align: right;">7 Days</td>
-                </tr>
-              </table>
-
-              <!-- Action Button -->
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom: 28px;">
-                <tr>
-                  <td align="center">
-                    <a href="{invite_url}" target="_blank" style="display: inline-block; width: 100%; box-sizing: border-box; text-align: center; background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%); color: #FFFFFF; text-decoration: none; font-size: 14px; font-weight: 600; padding: 14px 24px; border-radius: 8px; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);">
-                      Accept Invitation &amp; Setup KAIRO HUD &rarr;
-                    </a>
-                  </td>
-                </tr>
-              </table>
-
-              <p style="margin: 0 0 12px; font-size: 12px; color: #64748B; line-height: 1.5;">
-                After accepting your invitation, you'll be guided to download the KAIRO Desktop Floating HUD (available for Windows, macOS, and Linux) to automatically connect your local git branches with your team pod.
-              </p>
-
-              <!-- Fallback Link -->
-              <p style="margin: 0; font-size: 11px; color: #475569; word-break: break-all;">
-                If the button above doesn't work, copy and paste this link into your browser:<br>
-                <a href="{invite_url}" style="color: #60A5FA; text-decoration: underline;">{invite_url}</a>
-              </p>
-            </td>
-          </tr>
-
-          <!-- Footer -->
-          <tr>
-            <td style="padding: 20px 36px; border-top: 1px solid #1E293B; background-color: #070B14; text-align: center;">
-              <p style="margin: 0 0 6px; font-size: 11px; color: #64748B;">
-                Sent securely by <a href="{base_url}" target="_blank" style="color: #60A5FA; text-decoration: none; font-weight: 600;">KAIRO</a> Autonomous Work Continuity Engine
-              </p>
-              <p style="margin: 0; font-size: 11px; color: #475569;">
-                If you were not expecting this invitation, you can safely ignore this email.
-              </p>
-            </td>
-          </tr>
-
         </table>
+
+        <!-- Ticket -->
+        <table role="presentation" class="ticket" width="640" cellspacing="0" cellpadding="0" style="width: 640px; max-width: 640px; background-color: #FFFDF9;">
+          <tr>
+
+            <!-- Stub (left) -->
+            <td class="stub-col" width="200" valign="top" style="width: 200px; background-color: #1C1917; border-right: 2px dashed #F5F3EF;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" class="stub-pad" style="padding: 34px 26px;">
+                <tr>
+                  <td>
+                    <p style="margin: 0 0 4px; font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #FF6A3D;">Admit one</p>
+                    <p class="stub-role" style="margin: 0 0 4px; font-size: 20px; font-weight: 800; color: #FFFDF9; letter-spacing: -0.01em; word-break: break-word;">{role}</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="border-top: 1px dotted #57534E; padding-top: 18px;">
+                    <p style="margin: 0 0 3px; font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #A8A29E;">Organization</p>
+                    <p style="margin: 0 0 18px; font-size: 14px; font-weight: 700; color: #FFFDF9; word-break: break-word;">{organization_name}</p>
+                  </td>
+                </tr>
+                {team_stub_row}
+                <tr>
+                  <td style="border-top: 1px dotted #57534E; padding-top: 18px;">
+                    <p style="margin: 0 0 3px; font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #A8A29E;">Valid for</p>
+                    <p style="margin: 0; font-size: 14px; font-weight: 700; color: #FFFDF9;">7 days</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+
+            <!-- Main (right) -->
+            <td class="main-col" valign="top" style="background-color: #FFFDF9;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" class="main-pad" style="padding: 40px 44px;">
+                <tr>
+                  <td>
+                    <p style="margin: 0 0 10px; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #FF6A3D;">
+                      You're invited
+                    </p>
+                    <h1 class="headline" style="margin: 0 0 18px; font-size: 30px; line-height: 1.15; font-weight: 800; color: #1C1917; letter-spacing: -0.02em; word-break: break-word;">
+                      Join {organization_name}<br>on KAIRO
+                    </h1>
+                    <p class="lede" style="margin: 0 0 26px; font-size: 14.5px; line-height: 1.65; color: #57534E;">
+                      Hi {name_display} — you've been asked to join the team. KAIRO keeps commits, tasks, and architecture decisions in sync automatically, so status meetings stop being necessary.
+                    </p>
+
+                    <!-- CTA -->
+                    <table role="presentation" class="cta-table" cellspacing="0" cellpadding="0" style="margin-bottom: 24px;">
+                      <tr>
+                        <td style="background-color: #1C1917;">
+                          <a href="{invite_url}" target="_blank" class="cta-link" style="display: inline-block; color: #FFFDF9; text-decoration: none; font-size: 14.5px; font-weight: 700; padding: 15px 30px; letter-spacing: -0.005em;">
+                            Accept invitation &nbsp;&rarr;
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <p style="margin: 0 0 22px; font-size: 12.5px; line-height: 1.6; color: #A8A29E;">
+                      Accepting sets up the KAIRO Desktop HUD (Windows, macOS, Linux) so your local git branches stay linked to your pod.
+                    </p>
+
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-top: 1px dotted #E7E4DE;">
+                      <tr>
+                        <td style="padding-top: 18px;">
+                          <p style="margin: 0; font-size: 11.5px; line-height: 1.6; color: #A8A29E; word-break: break-all;">
+                            Link not working? Paste this into your browser —<br>
+                            <a href="{invite_url}" style="color: #FF6A3D; text-decoration: none;">{invite_url}</a>
+                          </p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+
+          </tr>
+        </table>
+
+        <!-- Footer -->
+        <table role="presentation" class="mobile-full" width="640" cellspacing="0" cellpadding="0" style="width: 640px; max-width: 640px;">
+          <tr>
+            <td align="center" style="padding: 26px 16px 0;">
+              <p style="margin: 0 0 4px; font-size: 12px; color: #A8A29E;">
+                Sent by <a href="{base_url}" target="_blank" style="color: #1C1917; text-decoration: none; font-weight: 700;">KAIRO</a> &middot; Autonomous Work Continuity Engine
+              </p>
+              <p style="margin: 0; font-size: 11.5px; color: #C4C0B9;">
+                Didn't expect this invitation? You can safely ignore this email.
+              </p>
+            </td>
+          </tr>
+        </table>
+
       </td>
     </tr>
   </table>

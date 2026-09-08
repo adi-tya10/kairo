@@ -37,7 +37,7 @@ def test_build_invitation_html_without_team_and_name():
         invite_url="https://kairo-web.onrender.com/auth?invite=token456",
         base_url="https://kairo-web.onrender.com",
     )
-    assert "Hi <strong style=\"color: #F8FAFC;\">there</strong>" in html
+    assert "Hi there" in html
     assert "Acme" in html
     assert "ADMIN" in html
     assert "raw.githubusercontent.com/adi-tya10/kairo/main/apps/web/public/kairo.png" in html
