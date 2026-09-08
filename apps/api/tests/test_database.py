@@ -387,8 +387,9 @@ async def test_check_redis_health_failure():
 
 def test_cors_origins_parsing():
     """Verifies that CORS_ORIGINS parses comma-separated, JSON array, and list formats."""
-    from apps.api.app.core.config import Settings
     import os
+
+    from apps.api.app.core.config import Settings
 
     # Comma-separated string in env
     orig_env = os.environ.get("CORS_ORIGINS")
