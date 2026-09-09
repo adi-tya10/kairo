@@ -19,6 +19,20 @@ def test_root_endpoint():
     assert data["status"] == "operational"
     assert "KAIRO" in data["engine"]
 
+    # Ensure HEAD request is supported for uptime bots
+    head_res = client.head("/")
+    assert head_res.status_code == 200
+
+
+def test_health_head_endpoint():
+    with (
+        patch("apps.api.app.api.v1.health.check_database_health", new=AsyncMock(return_value=True)),
+        patch("apps.api.app.api.v1.health.check_neo4j_health", new=AsyncMock(return_value=True)),
+        patch("apps.api.app.api.v1.health.check_redis_health", new=AsyncMock(return_value=True)),
+    ):
+        head_res = client.head("/health")
+        assert head_res.status_code == 200
+
 
 def test_health_endpoint_all_healthy():
     """All dependencies healthy → status == 'healthy'."""

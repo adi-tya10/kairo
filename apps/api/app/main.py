@@ -75,7 +75,7 @@ app.include_router(api_v1_router, prefix=settings.API_V1_STR)
 app.include_router(health_router)  # Root level /health convenience mount
 
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 async def root() -> dict[str, str]:
     return {
         "engine": "KAIRO Work Continuity Engine",
