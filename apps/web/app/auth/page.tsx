@@ -203,7 +203,11 @@ function AuthPageContent() {
         router.push("/dashboard");
       }
     } catch (err: any) {
-      setError(err.message || "An unexpected network error occurred.");
+      if (err.message === "Failed to fetch") {
+        setError("Unable to connect to KAIRO API server. If the server was spinning up, please wait a few moments and retry.");
+      } else {
+        setError(err.message || "An unexpected network error occurred.");
+      }
     } finally {
       setLoading(false);
     }
@@ -476,7 +480,12 @@ function AuthPageContent() {
               {loading ? (
                 <>
                   <RefreshCw size={14} className="animate-spin" />
-                  <span>Authenticating with Supabase...</span>
+                  <span>{mode === "invite" ? "Activating account & linking HUD..." : "Authenticating with Supabase..."}</span>
+                </>
+              ) : mode === "invite" ? (
+                <>
+                  <span>Accept Invitation &amp; Unlock HUD</span>
+                  <ArrowRight size={14} />
                 </>
               ) : mode === "login" ? (
                 <>

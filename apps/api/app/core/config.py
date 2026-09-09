@@ -42,12 +42,12 @@ class Settings(BaseSettings):
                 try:
                     parsed = json.loads(trimmed)
                     if isinstance(parsed, list):
-                        return [str(item).strip() for item in parsed if str(item).strip()]
+                        return [str(item).strip().rstrip('/') for item in parsed if str(item).strip()]
                 except Exception:
                     pass
-            return [origin.strip() for origin in trimmed.split(",") if origin.strip()]
+            return [origin.strip().rstrip('/') for origin in trimmed.split(",") if origin.strip()]
         if isinstance(v, list):
-            return [str(item).strip() for item in v if str(item).strip()]
+            return [str(item).strip().rstrip('/') for item in v if str(item).strip()]
         return []
 
     # Supabase / PostgreSQL
