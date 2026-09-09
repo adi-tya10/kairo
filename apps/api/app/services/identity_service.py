@@ -326,20 +326,37 @@ class IdentityService:
 
         if db:
             try:
-                res = db.table("invitations").select("*").eq("token_hash", token).eq("status", "PENDING").execute()
-                rows = _rows(res.data)
-                if rows:
-                    matched_inv = rows[0]
+                # Check if token exists in DB regardless of status
+                all_res = db.table("invitations").select("*").eq("token_hash", token).execute()
+                all_rows = _rows(all_res.data)
+                if all_rows:
+                    if all_rows[0].get("status") != "PENDING":
+                        # Mark memory store as accepted as well to maintain consistency
+                        for invs in cls._mem_invitations.values():
+                            for inv in invs:
+                                if inv.get("token") == token:
+                                    inv["status"] = InvitationStatus.ACCEPTED.value
+                        raise ValueError("Invitation has already been accepted or has been revoked.")
+                    matched_inv = all_rows[0]
                     target_org = str(matched_inv["organization_id"])
-                    # Mark accepted
+                    # Mark accepted in DB
                     db.table("invitations").update({"status": "ACCEPTED"}).eq("id", matched_inv["id"]).execute()
+                    # Also mark accepted in memory
+                    for invs in cls._mem_invitations.values():
+                        for inv in invs:
+                            if inv.get("token") == token:
+                                inv["status"] = InvitationStatus.ACCEPTED.value
+            except ValueError:
+                raise
             except Exception:
                 pass
 
         if not matched_inv:
             for org_id, invs in cls._mem_invitations.items():
                 for inv in invs:
-                    if inv["token"] == token and inv["status"] == InvitationStatus.PENDING.value:
+                    if inv["token"] == token:
+                        if inv["status"] != InvitationStatus.PENDING.value:
+                            raise ValueError("Invitation has already been accepted or has been revoked.")
                         matched_inv = inv
                         target_org = org_id
                         inv["status"] = InvitationStatus.ACCEPTED.value
