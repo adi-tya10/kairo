@@ -81,6 +81,7 @@ Every environment variable utilized by KAIRO across the API gateway, Celery work
 | `SMTP_PASSWORD` | Conditional | `xsmtpsib-...` | SMTP account password or API master key. | Brevo SMTP Settings |
 | `SMTP_FROM_EMAIL` | No | `adityaeeshan5230@gmail.com` | Verified sender address shown in employee invitation emails. | Brevo Senders Console |
 | `SMTP_FROM_NAME` | No | `KAIRO Team` | Display name for outgoing invitation and notification emails. | Internal brand config |
+| `WEB_APP_URL` | No | `https://kairo-web-91or.onrender.com` | Base URL of frontend web portal for email invite links and redirects. | Web deployment URL |
 
 ---
 

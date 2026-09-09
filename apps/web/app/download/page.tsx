@@ -16,7 +16,6 @@ import {
   Zap,
   CheckCircle2,
   FolderGit2,
-  Lock,
 } from "lucide-react";
 import { API_BASE } from "../api-config";
 
@@ -25,15 +24,17 @@ type OSType = "windows" | "macos" | "linux";
 function DownloadContent() {
   const searchParams = useSearchParams();
   const isOnboarding = searchParams.get("onboarding") === "true";
-  const orgParam = searchParams.get("org") || "snapmeet";
+  const [orgParam, setOrgParam] = useState("snapmeet");
+  const [originUrl, setOriginUrl] = useState("https://kairo-web-91or.onrender.com");
 
   const [selectedOS, setSelectedOS] = useState<OSType>("windows");
   const [copiedCmd, setCopiedCmd] = useState<string | null>(null);
   const [downloadStarted, setDownloadStarted] = useState(false);
 
-  // Auto-detect client OS on mount
+  // Auto-detect client OS and origin on mount
   useEffect(() => {
     if (typeof window !== "undefined") {
+      setOriginUrl(window.location.origin);
       const ua = navigator.userAgent.toLowerCase();
       if (ua.includes("mac")) {
         setSelectedOS("macos");
@@ -44,6 +45,18 @@ function DownloadContent() {
       }
     }
   }, []);
+
+  useEffect(() => {
+    const qOrg = searchParams.get("org");
+    if (qOrg) {
+      setOrgParam(qOrg);
+    } else if (typeof window !== "undefined") {
+      const storedOrg = localStorage.getItem("kairo_org_id");
+      if (storedOrg) {
+        setOrgParam(storedOrg);
+      }
+    }
+  }, [searchParams]);
 
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
@@ -145,10 +158,12 @@ echo "[✓] Setup complete. Press [Ctrl + Space] to toggle KAIRO HUD."
       {/* Top Navigation */}
       <header className="border-b border-[#1E293B] bg-[#0B0F19]/80 backdrop-blur sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-white shadow-lg shadow-blue-500/30">
-              K
-            </div>
+          <Link href="/" className="flex items-center gap-3 group">
+            <img
+              src="/kairo.png"
+              alt="KAIRO"
+              className="w-8 h-8 rounded-lg object-contain shadow-lg shadow-blue-500/20 group-hover:scale-105 transition-transform"
+            />
             <span className="font-bold text-lg tracking-tight">KAIRO</span>
             <span className="text-[10px] px-2 py-0.5 rounded bg-blue-900/40 text-blue-400 border border-blue-700/40 font-mono uppercase">
               HUD v2.0
@@ -293,19 +308,15 @@ echo "[✓] Setup complete. Press [Ctrl + Space] to toggle KAIRO HUD."
             <div className="flex items-center justify-between bg-[#030712] border border-[#1E293B] rounded-lg px-4 py-3 font-mono text-xs text-[#E2E8F0]">
               <span className="truncate mr-4">
                 {selectedOS === "windows"
-                  ? "irm https://kairo.app/install.ps1 | iex"
-                  : selectedOS === "macos"
-                  ? "brew install --cask kairo"
-                  : "curl -fsSL https://kairo.app/install.sh | bash"}
+                  ? `irm ${originUrl}/install.ps1 | iex`
+                  : `curl -fsSL ${originUrl}/install.sh | bash`}
               </span>
               <button
                 onClick={() =>
                   handleCopy(
                     selectedOS === "windows"
-                      ? "irm https://kairo.app/install.ps1 | iex"
-                      : selectedOS === "macos"
-                      ? "brew install --cask kairo"
-                      : "curl -fsSL https://kairo.app/install.sh | bash",
+                      ? `irm ${originUrl}/install.ps1 | iex`
+                      : `curl -fsSL ${originUrl}/install.sh | bash`,
                     "cmd"
                   )
                 }

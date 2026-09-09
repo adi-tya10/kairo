@@ -267,10 +267,15 @@ class EmailService:
 
         try:
             context = ssl.create_default_context()
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15) as server:
-                server.starttls(context=context)
-                server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-                server.sendmail(settings.SMTP_FROM_EMAIL, [to_email], message.as_string())
+            if settings.SMTP_PORT == 465:
+                with smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, context=context, timeout=15) as server:
+                    server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                    server.sendmail(settings.SMTP_FROM_EMAIL, [to_email], message.as_string())
+            else:
+                with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=15) as server:
+                    server.starttls(context=context)
+                    server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                    server.sendmail(settings.SMTP_FROM_EMAIL, [to_email], message.as_string())
 
             logger.info(
                 f"Email successfully delivered to {to_email} (Subject: '{subject}')"
@@ -302,7 +307,11 @@ class EmailService:
             base_url = "https://kairo-web-91or.onrender.com"
 
         invite_url = f"{base_url}/auth?invite={invite_token}"
-        org_display = organization_id.capitalize()
+        org_display = (
+            organization_id.replace('-', ' ').replace('_', ' ').title()
+            if organization_id
+            else "Organization"
+        )
 
         subject = f"You've been invited to join {org_display} on KAIRO"
         html_body = cls._build_invitation_html(

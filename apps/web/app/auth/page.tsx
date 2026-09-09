@@ -154,7 +154,12 @@ function AuthPageContent() {
 
         const data = await res.json();
         localStorage.setItem("kairo_jwt_token", data.access_token);
-        router.push("/download?onboarding=true");
+        if (data.user?.organization_id) {
+          localStorage.setItem("kairo_org_id", data.user.organization_id);
+          router.push(`/download?onboarding=true&org=${encodeURIComponent(data.user.organization_id)}`);
+        } else {
+          router.push("/download?onboarding=true");
+        }
       } else if (mode === "login") {
         const res = await fetch(`${API_BASE}/auth/login`, {
           method: "POST",
@@ -169,6 +174,9 @@ function AuthPageContent() {
 
         const data = await res.json();
         localStorage.setItem("kairo_jwt_token", data.access_token);
+        if (data.user?.organization_id) {
+          localStorage.setItem("kairo_org_id", data.user.organization_id);
+        }
         router.push("/dashboard");
       } else {
         const res = await fetch(`${API_BASE}/auth/register`, {
@@ -189,6 +197,9 @@ function AuthPageContent() {
 
         const data = await res.json();
         localStorage.setItem("kairo_jwt_token", data.access_token);
+        if (data.organization?.id) {
+          localStorage.setItem("kairo_org_id", data.organization.id);
+        }
         router.push("/dashboard");
       }
     } catch (err: any) {
