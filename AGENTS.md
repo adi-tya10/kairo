@@ -72,6 +72,7 @@ If any command fails due to a missing tool, credential, or version mismatch, the
 5. **API Versioning:** Breaking changes to any REST contract must be introduced under a new version prefix (`/api/v2/...`); never mutate the response shape of an existing versioned endpoint in place.
 6. **Config via Settings Object Only:** All configuration, feature flags, and environment-dependent values must flow through `app.core.config.get_settings()`. No `os.environ.get()` calls scattered in business logic.
 7. **Mandatory Documentation & CHANGELOG Synchronization:** Every time an architectural decision, backend mechanism, data model, API contract, engine rule, or bug fix is finalized, committed, or modified, the AI agent MUST immediately update and maintain the corresponding Markdown documentation in `docs/`, root documentation (`README.md`, `ARCHITECTURE.md`), and **strictly document the changes in `CHANGELOG.md`** adhering to the [Keep a Changelog](https://keepachangelog.com/) standard. Never commit code without updating `CHANGELOG.md`. Documentation must never be left stale.
+8. **Mandatory Remote Push to GitHub:** After every finalized architectural or technical decision, bug fix, or feature milestone, the AI agent MUST commit the verified code following Conventional Commits, synchronize `CHANGELOG.md` and documentation, and immediately **push the code to GitHub** (`git push origin <branch>`). Never leave finalized decisions or completed work unpushed on local storage.
 
 ### 4.2. Naming Conventions
 * **Python Backend:** `snake_case` for functions, variables, and module filenames; `PascalCase` for classes and Pydantic models; `UPPER_SNAKE_CASE` for global constants.
@@ -179,6 +180,7 @@ KAIRO's LLM layer consumes untrusted, externally-sourced text (commit messages, 
 - [ ] Structured logging used, no sensitive data logged
 - [ ] Migrations include a rollback path
 - [ ] `CHANGELOG.md` updated with all added, changed, fixed, or security modifications
+- [ ] Verified code committed and pushed to remote GitHub repository (`git push origin <branch>`)
 
 ---
 
@@ -201,6 +203,7 @@ KAIRO's LLM layer consumes untrusted, externally-sourced text (commit messages, 
 7. **NEVER widen an API's data exposure "to make the frontend easier to build"** — if the frontend needs more data, the schema change must be deliberate and reviewed, not a shortcut.
 8. **NEVER commit auto-generated secrets, API tokens, or `.env` files created during local testing**, even temporarily.
 9. **NEVER commit code changes without updating `CHANGELOG.md`**: Every commit, hotfix, feature addition, refactor, or schema alteration must be tracked under the appropriate version section in `CHANGELOG.md`.
+10. **NEVER leave finalized decisions or verified work unpushed to GitHub:** After any architectural decision, technical implementation, bug fix, or milestone is finalized and committed, the agent MUST immediately push the commits to GitHub (`git push origin <branch>`). Never leave completed work unpushed on local storage.
 
 ---
 
@@ -255,6 +258,7 @@ A task is complete only when **all** of the following are true:
 - [ ] Security guardrails (Section 7) and LLM safety guardrails (Section 6) verified, not assumed
 - [ ] No prohibited actions from Section 13 were taken
 - [ ] Corresponding Markdown documentation in `docs/` and `CHANGELOG.md` updated and synchronized
+- [ ] Code committed and pushed to remote GitHub repository (`git push origin <branch>`)
 - [ ] Self-review checklist (Section 11.1) completed
 - [ ] PR description is complete and flags any sensitive-area changes for human review
 - [ ] Any ambiguity encountered was escalated (Section 14), not silently resolved by assumption

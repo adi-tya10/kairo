@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Desktop HUD Environment Decoupling:** Replaced hardcoded `localhost:8000` API endpoints in `apps/desktop/src/App.tsx` and `ChatAssistant.tsx` with dynamic `import.meta.env.VITE_KAIRO_API_URL`, providing production default fallback and dedicated `.env.production` and `.env.development` configurations.
 - **Production Guardrails on Embeddings Pipeline:** Workers require valid LLM API credentials when operating in `APP_ENV=production`, preventing silent heuristic fallbacks in production pipelines.
 - **Documentation Alignment:** Updated `README.md` and engine docstrings to accurately document CV layout parser heuristics and the 2-tier deterministic Git work resolution model.
+- **Mandatory Remote GitHub Synchronization:** Updated `AGENTS.md` (§4.1, §11.1, §13, §17) to mandate that after every finalized decision, bug fix, or milestone, verified code must be committed and pushed immediately to GitHub (`git push origin <branch>`).
 
 ### Testing & Verification
 - **Full Test Suite Passing:** Verified 54/54 tests passing across auth, sync, diagrams, security error handlers, enterprise identity, Slack webhooks, and pgvector chat retrieval. Zero regressions.
