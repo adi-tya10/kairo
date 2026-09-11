@@ -40,6 +40,8 @@ celery_app = Celery(
         "workers.tasks.embeddings",
         "workers.tasks.alerts",
         "workers.tasks.diagram",
+        "workers.tasks.slack_task",
+        "workers.tasks.backfill_task",
     ],
 )
 
@@ -59,6 +61,8 @@ celery_app.conf.update(
     broker_transport_options={"visibility_timeout": 43200},  # 12 hours for long jobs
     task_routes={
         "workers.tasks.ingest.*": {"queue": "ingest"},
+        "workers.tasks.slack_task.*": {"queue": "ingest"},
+        "workers.tasks.backfill_task.*": {"queue": "ingest"},
         "workers.tasks.embeddings.*": {"queue": "embeddings"},
         "workers.tasks.alerts.*": {"queue": "alerts"},
         "workers.tasks.diagram.*": {"queue": "diagram"},

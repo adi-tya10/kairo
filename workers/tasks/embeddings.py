@@ -112,7 +112,16 @@ def generate_768_embedding(text: str) -> list[float]:
         if gemini_vec and len(gemini_vec) == 768:
             return [round(x, 6) for x in gemini_vec]
 
-    # 2. Real Semantic Lexical Projection Model (768 dimensions)
+    # 2. In production, real embedding provider is mandatory
+    if settings.APP_ENV == "production":
+        logger.error("Production vector embedding requires a configured OPENAI_API_KEY or GEMINI_API_KEY provider.")
+        raise RuntimeError(
+            "Vector embedding provider unavailable in production environment. "
+            "Please configure OPENAI_API_KEY or GEMINI_API_KEY."
+        )
+
+    # 3. Development/Testing Local Semantic Lexical Projection Model (768 dimensions simulation)
+    logger.debug("Using local semantic concept-space projection simulation for embeddings (Development/Testing only).")
     words = re.findall(r"[a-zA-Z0-9_-]+", text.lower())
     dim = 768
     vector: list[float] = [0.0] * dim

@@ -7,6 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.0] - 2026-09-11
+
+### Security & Access Control (P1 & P2 Remediations)
+- **Zero Unauthenticated Tenant Endpoints:** Enforced strict `Depends(get_current_user)` authentication and `PreRetrievalACL.validate_tenant_access` tenant-scoping across `/api/v1/sync/historical`, `/api/v1/sync/cloud`, `/api/v1/sync/status/{job_id}`, and `/api/v1/diagrams/parse`.
+- **Path Traversal Defenses:** Hardened historical sync directory path resolution against directory traversal (`..`) attempts, returning HTTP 400 Bad Request on path traversal probes.
+- **RFC-Compliant Authentication Challenge:** Configured optional header parsing (`authorization: str | None = Header(None)`) in `get_current_user`, returning standard HTTP 401 Unauthorized for missing bearer tokens instead of FastAPI's default 422 Unprocessable Entity.
+- **Cryptographic Token Hashing for Invitations:** Stored enterprise invitation tokens exclusively as cryptographic SHA-256 digests (`token_hash`) in PostgreSQL and memory stores; raw tokens are distributed only once at creation and never exposed in database columns or list APIs.
+- **Eliminated Silent In-Memory Fallbacks:** Introduced typed `DatabaseWriteError` exceptions (`apps/api/app/core/errors.py`); in `APP_ENV=production`, database write failures immediately raise structured HTTP 500 errors and log structured JSON alerts instead of silently diverging into in-memory dictionaries.
+- **Eradicated Bare Exception Handlers:** Replaced all repo-wide `except Exception: pass` anti-patterns with structured JSON logging and typed error escalation across identity, handoff, context, and webhook ingress controllers.
+
+### Architecture & Database (P1 & P3 Remediations)
+- **PostgreSQL Migrations 004 & 005 Applied:** Applied user password hashing (`004_user_passwords_and_seed.sql`) and cloud backfill/Slack decisions (`005_backfill_and_slack_decisions.sql`) to active Supabase PostgreSQL cluster.
+- **Vector Similarity Search RPC (Migration 006):** Implemented and applied `006_vector_similarity_search.sql` adding the `match_embeddings` stored procedure utilizing `pgvector` cosine similarity (`1 - (embeddings.embedding <=> query_embedding)`) and IVFFlat index traversal for high-performance multi-tenant semantic retrieval.
+- **Desktop HUD Environment Decoupling:** Replaced hardcoded `localhost:8000` API endpoints in `apps/desktop/src/App.tsx` and `ChatAssistant.tsx` with dynamic `import.meta.env.VITE_KAIRO_API_URL`, providing production default fallback and dedicated `.env.production` and `.env.development` configurations.
+- **Production Guardrails on Embeddings Pipeline:** Workers require valid LLM API credentials when operating in `APP_ENV=production`, preventing silent heuristic fallbacks in production pipelines.
+- **Documentation Alignment:** Updated `README.md` and engine docstrings to accurately document CV layout parser heuristics and the 2-tier deterministic Git work resolution model.
+
+### Testing & Verification
+- **Full Test Suite Passing:** Verified 54/54 tests passing across auth, sync, diagrams, security error handlers, enterprise identity, Slack webhooks, and pgvector chat retrieval. Zero regressions.
+
+---
+
+## [1.2.0] - 2026-09-10
+
+### Added
+- **Production-Grade Slack Inbound Webhook Ingestion:** Mounted `POST /api/v1/webhooks/slack` with sub-45ms `202 Accepted` response SLA, URL challenge handling, cryptographic HMAC-SHA256 signature verification (`verify_slack_signature` with 5-minute replay prevention), and Redis-backed event ID deduplication (`event_id`).
+- **Smart 3-Layer Pre-LLM Noise Filtering:** Implemented a differentiated noise filtering engine (`workers/tasks/slack_task.py`) that filters top-level chatter while strictly preserving thread replies—safeguarding short architectural proposals (e.g. "Redis", "Kafka") and affirmative consensus votes ("LGTM", "+1", emoji reactions).
+- **Whole-Thread Decision Gate & Spend Cap Protection:** Integrated a whole-thread keyword filter (requires $\ge 2$ replies, $\ge 15$ words, technical signal matching) avoiding zero-value LLM costs, combined with a hard per-tenant daily spend ceiling (`$10.00`) queried against `llm_usage_log`.
+- **Confidence-Gated Graph Lineage Mutations:** Structured LLM decision extraction (`LLMService.extract_decision_from_thread`) strictly validated against `ExtractedDecision` schema; decisions $\ge 0.70$ mutate Neo4j AuraDB with `[:JUSTIFIES]` and `[:SUPERSEDES]` edges, while decisions $< 0.70$ are quarantined to PostgreSQL `decision_review_queue` for human sign-off.
+- **Resumable 120-Day Cloud Historical Backfill Engine:** Implemented `POST /api/v1/sync/cloud` and `GET /api/v1/sync/status/{job_id}` orchestrating GitHub, Jira, and Slack historical backfills backed by Celery (`sync_historical_cloud_data`) with cursor-based checkpointing in `backfill_jobs`.
+- **Relational & Graph Schema Migrations:** Added PostgreSQL migration `005_backfill_and_slack_decisions.sql` (`slack_threads`, `decision_review_queue`, `llm_usage_log`, `backfill_jobs`) and Neo4j Cypher migration `002_decision_lineage.cypher` (multi-tenant composite indexes on source, confidence, timestamp).
+
+### Testing & Verification
+- **100% Passing Webhook & Engine Suite:** Added 15 comprehensive unit and contract tests in `apps/api/tests/test_slack_webhook.py` covering URL verification, valid/invalid HMAC signatures, replay attack rejection, event deduplication, thread filtering, consensus vote detection, confidence gating, spend cap halts, and backfill status polling. All 38 existing tests pass with zero regressions.
+
+---
+
+## [1.1.1] - 2026-09-09
+
+### Security & Identity
+- **Invitation Token Replay Prevention:** Synchronized database and in-memory invitation status upon acceptance in `IdentityService` to prevent token reuse, replay attacks, and state divergence.
+- **CORS Configuration & Render Domain Regex:** Updated `CORS_ORIGINS` parsing to flexibly handle both comma-separated and JSON string formats in `pydantic-settings`, and introduced `allow_origin_regex` to support dynamic OnRender preview and staging subdomains.
+
+### Added & Improvements
+- **Transactional Brevo Email Service & Boarding Pass Templates:** Implemented transactional invitation emails via Brevo SMTP featuring styled boarding pass HTML layouts, production fallback URL resolution, and hardened SMTP transport error recovery.
+- **Dynamic Desktop HUD Onboarding & Download Flow:** Added dedicated automated installer scripts (`public/install.ps1` for Windows, `public/install.sh` for Unix/macOS) and wired live download onboarding flow in `apps/web`.
+- **Uptime Monitoring & Health Checks:** Added `HEAD` method support on `/` and `/health` to allow zero-payload heartbeat probes from external uptime monitoring bots.
+
+### Infrastructure & Cloud Deployment
+- **Render Cloud Blueprint (`render.yaml`):** Created full infrastructure blueprint with dynamic port binding and embedded Celery start script for unified deployment.
+- **Cloud Redis & Worker Resilience:** Added `rediss://` SSL support for Celery with Upstash Redis, connection pool socket timeouts, client reset on reconnect, explicit task result TTLs, and graceful startup retries during transient database outages.
+- **Container Packaging:** Added `cv_pipeline` module to the Docker container context to resolve image build and import dependencies.
+
+---
+
 ## [1.1.0] - 2026-09-08
 
 ### Added

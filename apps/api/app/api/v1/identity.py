@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from supabase import Client
 
 from apps.api.app.core.database import get_db
+from apps.api.app.core.logging import get_logger
 from apps.api.app.core.security import create_access_token, get_current_user
 from apps.api.app.services.email_service import EmailService
 from apps.api.app.services.identity_service import IdentityService
@@ -19,9 +20,12 @@ from packages.schemas.identity import (
     Team,
     TeamCreate,
     UserIdentityContextResponse,
+    UserRole,
+    UserStatus,
 )
 from packages.schemas.permissions import UserPermissionProfile
 
+logger = get_logger("kairo.api.identity")
 router = APIRouter(prefix="", tags=["Enterprise Identity & Provisioning"])
 
 
@@ -192,8 +196,8 @@ async def list_organization_members(
                 })
             if members:
                 return members
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to fetch organization members from database: {e}", exc_info=True)
 
     # Fallback to in-memory store
     for u in IdentityService._mem_users.values():
@@ -234,8 +238,8 @@ async def update_member_status(
             res = db.table("users").update({"status": body.status}).eq("organization_id", profile.organization_id).eq("id", user_id).execute()
             if _rows(res.data):
                 return {"status": "success", "message": f"User status updated to {body.status}"}
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(f"Failed to update user status in database: {e}", exc_info=True)
 
     for u in IdentityService._mem_users.values():
         if u.get("user_id") == user_id and u.get("organization_id") == profile.organization_id:

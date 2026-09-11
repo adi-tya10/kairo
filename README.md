@@ -78,7 +78,7 @@ Kairo is built upon modern, high-throughput, and production-tested 2026 cloud-na
 | **Relational & Vector DB**| **Supabase PostgreSQL** | `16+` (`pgvector 0.7+`)| ACID compliance, multi-tenant Row-Level Security (RLS), relational enterprise identity, idempotent `events_raw` log, and dense 768-dim vectors. |
 | **Knowledge Graph** | **Neo4j AuraDB** | `5.20+` | Native labeled property graph with Cypher queries for temporal validity slicing and 2-hop dependency traversal. |
 | **Semantic Embeddings** | **OpenAI / Gemini / Concept Space**| 768-dim | Cloud API embedding models (`text-embedding-3-small`, `text-embedding-004`) with deterministic 768-dim concept-space projection fallback. |
-| **Computer Vision / OCR** | **OpenCV + PaddleOCR + Docling**| Latest | Spatial analysis and directional arrow tracking converting architecture diagram images into structured graph nodes. |
+| **Diagram & Spec Parsing** | **PIL + OCR Layout Analysis**| Latest | Bounding box analysis, color classification, and text block parsing extracting architectural entities from diagrams and specifications (OpenCV/PaddleOCR target extension). |
 | **Reasoning LLM** | **Groq / Google Gemini / OpenAI**| Latest | High-speed LPU / multimodal inference ($T=0.1$) with structured output constraints, mandatory inline citation enforcement, and offline fallback. |
 
 ---
@@ -195,6 +195,13 @@ pnpm dev
 | `LINEAR_WEBHOOK_SECRET` | Yes | High-entropy secret string | Secret for Linear HMAC-SHA256 signature verification (`Linear-Signature`). |
 | `GITLAB_WEBHOOK_SECRET` | Yes | High-entropy secret string | Secret token for GitLab webhook verification (`X-Gitlab-Token`). |
 | `SLACK_WEBHOOK_URL` | No | `https://hooks.slack.com/services/...` | Incoming Slack webhook URL for alerts and handoff digests. |
+| `SLACK_SIGNING_SECRET` | Yes | High-entropy secret string | Secret for verifying Slack Events API HMAC-SHA256 signatures (`X-Slack-Signature`). |
+| `SLACK_BOT_TOKEN` | No | `xoxb-...` | Slack Bot User OAuth Token for fetching thread replies and channel history. |
+| `MAX_DAILY_LLM_SPEND_USD` | No | `10.00` | Maximum daily LLM spend ceiling in USD per organization before throttling extraction. |
+| `SLACK_NOISE_MIN_WORDS` | No | `15` | Minimum word count for standalone Slack messages to bypass noise drop. |
+| `DECISION_CONFIDENCE_THRESHOLD` | No | `0.70` | Minimum confidence score to write directly to Neo4j; decisions below route to review queue. |
+| `ENABLE_SLACK_INGESTION` | No | `true` | Feature flag to toggle inbound Slack webhook handling and decision extraction. |
+| `ENABLE_HISTORICAL_BACKFILL` | No | `true` | Feature flag to toggle 120-day historical cloud backfill jobs. |
 | `GROQ_API_KEY` | Conditional | `gsk_...` | Groq high-speed inference API key. |
 | `GEMINI_API_KEY` | Conditional | `AIzaSy...` | Google Gemini Pro/Flash & text-embedding-004 API key. |
 | `OPENAI_API_KEY` | Conditional | `sk-proj-...` | OpenAI API key for GPT models & text-embedding-3-small. |
@@ -260,7 +267,7 @@ kairo/
 ├── packages/
 │   ├── schemas/                 # Shared Pydantic models & TypeScript types
 │   └── prompts/                 # Versioned, cited LLM prompt templates
-├── cv_pipeline/                 # OpenCV + PaddleOCR diagram processing scripts
+├── cv_pipeline/                 # Diagram bounding box and text block parsing scripts (PIL/OCR)
 ├── graph/                       # Cypher migrations & query library
 ├── db/                          # Supabase PostgreSQL DDL migrations & RLS policies
 ├── fixtures/                    # Seeded test scenarios (Rahul -> Aman transition)

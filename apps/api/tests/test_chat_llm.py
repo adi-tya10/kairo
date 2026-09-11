@@ -192,37 +192,48 @@ def test_citation_extractor_clean_normalization() -> None:
 
 def test_llm_service_fallback_intent_branches() -> None:
     chunks = [
-        {"source": "Jira BILL-204", "content": "Payment idempotency via Redis SETNX."},
-        {"source": "PR #88", "content": "Razorpay webhook retry logic."},
+        {"source": "Jira TASK-101", "content": "Payment idempotency via Redis SETNX."},
+        {"source": "PR #42", "content": "Retry logic for webhook invoicing."},
+        {"source": "Arch-Doc", "content": "PostgreSQL 16 relational database with pgvector."},
+        {"source": "Graph-Spec", "content": "Neo4j AuraDB knowledge graph modeling temporal provenance."},
+        {"source": "Anomaly-Log", "content": "HW-03 State Mismatch detected between branch and ticket."},
     ]
 
     # Greeting intent
-    res_greet = LLMService._synthesize_grounded_fallback("Hello there", "snapmeet/billing-service", chunks)
+    res_greet = LLMService._synthesize_grounded_fallback("Hello there", "acme/payment-service", chunks)
     assert "KIAN" in res_greet
+    assert "acme/payment-service" in res_greet
 
     # Hinglish greeting
-    res_namaste = LLMService._synthesize_grounded_fallback("Namaste kaise ho aap", "snapmeet/billing-service", chunks)
+    res_namaste = LLMService._synthesize_grounded_fallback("Namaste kaise ho aap", "acme/payment-service", chunks)
     assert "Namaste" in res_namaste or "badhiya" in res_namaste
 
-    # Cache / Redis question
-    res_redis = LLMService._synthesize_grounded_fallback("Is Redis being used here?", "snapmeet/billing-service", chunks)
+    # Cache / Redis question grounded in chunk
+    res_redis = LLMService._synthesize_grounded_fallback("Is Redis being used here?", "acme/payment-service", chunks)
     assert "Redis" in res_redis
+    assert "[Jira TASK-101]" in res_redis
 
-    # Database question
-    res_db = LLMService._synthesize_grounded_fallback("What database are we using?", "snapmeet/billing-service", chunks)
+    # Database question grounded in chunk
+    res_db = LLMService._synthesize_grounded_fallback("What database are we using?", "acme/payment-service", chunks)
     assert "PostgreSQL" in res_db
+    assert "[Arch-Doc]" in res_db
 
-    # Graph question
-    res_graph = LLMService._synthesize_grounded_fallback("Tell me about the Neo4j graph lineage", "snapmeet/billing-service", chunks)
+    # Graph question grounded in chunk
+    res_graph = LLMService._synthesize_grounded_fallback("Tell me about the Neo4j graph lineage", "acme/payment-service", chunks)
     assert "Neo4j" in res_graph
+    assert "[Graph-Spec]" in res_graph
 
-    # Anomaly question
-    res_anom = LLMService._synthesize_grounded_fallback("Are there any anomalies?", "snapmeet/billing-service", chunks)
-    assert "HW-03" in res_anom or "anomaly" in res_anom.lower()
+    # Anomaly question grounded in chunk
+    res_anom = LLMService._synthesize_grounded_fallback("Are there any anomalies?", "acme/payment-service", chunks)
+    assert "HW-03" in res_anom
+    assert "[Anomaly-Log]" in res_anom
 
-    # Empty chunks / fallback
-    res_empty = LLMService._synthesize_grounded_fallback("Random unrelated question", "snapmeet/billing-service", [])
-    assert "snapmeet/billing-service" in res_empty
+    # Empty chunks / truthful unavailable fallback (zero hallucinated demo data)
+    res_empty = LLMService._synthesize_grounded_fallback("Random unrelated question", "acme/payment-service", [])
+    assert "acme/payment-service" in res_empty
+    assert "unavailable" in res_empty.lower()
+    assert "BILL-204" not in res_empty
+    assert "snapmeet" not in res_empty
 
 
 def test_explicit_tenant_isolation_chat_and_context() -> None:
@@ -305,5 +316,69 @@ def test_explicit_tenant_isolation_chat_and_context() -> None:
     )
     assert res_beta_legit.status_code == 200
     assert res_beta_legit.json()["status"] == "authorized"
+
+
+def test_chat_pgvector_similarity_search_rpc(snapmeet_user_token: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    P3.1 Acceptance Test:
+    Verifies that chat.py invokes the pgvector match_embeddings RPC with 768-dim query_embedding,
+    filter_organization_id, and filter_repo_id.
+    """
+    from typing import Any
+    from apps.api.app.core.config import get_settings
+    from apps.api.app.core.database import get_db
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "APP_ENV", "development")
+
+    rpc_calls = []
+
+    class MockPostgrestBuilder:
+        def execute(self):
+            class Res:
+                data = [{
+                    "id": "emb_123",
+                    "entity_type": "commit",
+                    "entity_id": "sha_abc",
+                    "content_chunk": "Refactored checkout flow to handle Stripe webhook idempotency",
+                    "similarity": 0.88,
+                    "metadata": {},
+                }]
+            return Res()
+
+    class MockClient:
+        def rpc(self, fn_name: str, params: dict[str, Any]):
+            rpc_calls.append({"fn": fn_name, "params": params})
+            return MockPostgrestBuilder()
+
+        def table(self, tbl: str):
+            class TableBuilder:
+                def select(self, *args): return self
+                def eq(self, *args): return self
+                def limit(self, *args): return self
+                def execute(self):
+                    class Res: data = []
+                    return Res()
+            return TableBuilder()
+
+    app.dependency_overrides[get_db] = lambda: MockClient()
+    try:
+        res = client.post(
+            "/api/v1/chat/query",
+            headers={"Authorization": f"Bearer {snapmeet_user_token}"},
+            json={
+                "organization_id": "snapmeet",
+                "repo_id": "snapmeet/billing-service",
+                "query": "How does checkout work?",
+            },
+        )
+        assert res.status_code == 200
+        assert len(rpc_calls) == 1
+        assert rpc_calls[0]["fn"] == "match_embeddings"
+        assert rpc_calls[0]["params"]["filter_organization_id"] == "snapmeet"
+        assert rpc_calls[0]["params"]["filter_repo_id"] == "snapmeet/billing-service"
+        assert len(rpc_calls[0]["params"]["query_embedding"]) == 768
+    finally:
+        app.dependency_overrides.pop(get_db, None)
 
 

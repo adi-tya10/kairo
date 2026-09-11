@@ -5,7 +5,9 @@ import { FloatingLogoIcon } from "./components/FloatingLogoIcon";
 import { ActiveContext, AnomalyAlert, ActionStep } from "./types";
 import { Lock, Mail, ArrowRight, Loader2, AlertCircle, GripVertical, Minimize2, Zap } from "lucide-react";
 
-const API_BASE = "http://localhost:8000/api/v1";
+const API_BASE: string =
+  (import.meta.env.VITE_KAIRO_API_URL as string) ||
+  "https://kairo-web-91or.onrender.com/api/v1";
 
 const STORAGE_KEY_TOKEN = "kairo_jwt_token";
 const STORAGE_KEY_USER = "kairo_cached_user_context";

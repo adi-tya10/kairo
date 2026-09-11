@@ -1,13 +1,13 @@
 import hashlib
 import hmac
+import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import jwt
-from fastapi import Header, HTTPException, status
-
 from apps.api.app.core.config import get_settings
 from apps.api.app.core.errors import SignatureVerificationError
+from fastapi import Header, HTTPException, status
 from packages.schemas.permissions import UserPermissionProfile
 
 
@@ -26,7 +26,7 @@ def decode_access_token(token: str) -> dict[str, Any]:
 
 
 def get_current_user(
-    authorization: str = Header(..., alias="Authorization"),
+    authorization: str | None = Header(None, alias="Authorization"),
 ) -> UserPermissionProfile:
     """
     Reusable FastAPI dependency for extracting and verifying JWT bearer credentials.
@@ -144,5 +144,36 @@ def verify_gitlab_token(header_token: str | None) -> bool:
     expected_token = settings.GITLAB_WEBHOOK_SECRET
     if not hmac.compare_digest(header_token.strip(), expected_token.strip()):
         raise SignatureVerificationError("GitLab secret token verification failed")
+
+    return True
+
+
+def verify_slack_signature(
+    payload_body: bytes,
+    timestamp_str: str | None,
+    signature: str | None,
+) -> bool:
+    """
+    Verifies mandatory HMAC SHA-256 signature for inbound Slack Events API webhooks.
+    Enforces a strict 5-minute (300 seconds) replay window.
+    """
+    if not signature or not timestamp_str:
+        raise SignatureVerificationError("Missing Slack signature or timestamp header")
+
+    try:
+        req_timestamp = int(timestamp_str)
+    except (ValueError, TypeError) as exc:
+        raise SignatureVerificationError("Invalid Slack request timestamp") from exc
+
+    if abs(time.time() - req_timestamp) > 300:
+        raise SignatureVerificationError("Slack request timestamp exceeds 5-minute replay window")
+
+    settings = get_settings()
+    secret = settings.SLACK_SIGNING_SECRET.encode("utf-8")
+    sig_basestring = f"v0:{timestamp_str}:{payload_body.decode('utf-8', errors='replace')}".encode("utf-8")
+    computed = "v0=" + hmac.new(secret, sig_basestring, hashlib.sha256).hexdigest()
+
+    if not hmac.compare_digest(computed, signature.strip()):
+        raise SignatureVerificationError("Slack HMAC signature verification failed")
 
     return True

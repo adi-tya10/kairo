@@ -127,6 +127,20 @@ class UserPermissionProfile(BaseModel):
     synced_at: datetime
 ```
 
+### 2.5. Extracted Technical Decision (`packages/schemas/decision.py`)
+```python
+class ExtractedDecision(BaseModel):
+    """
+    Normalized technical decision extracted from team discussions (Slack, GitHub, RFCs).
+    Enforces confidence gating before graph mutation.
+    """
+    title: str = Field(..., description="Short descriptive title of the technical decision")
+    rationale: str = Field(..., description="Technical justification and trade-offs considered")
+    jira_key: str | None = Field(None, description="Referenced Jira/Linear issue key, e.g. BILL-204")
+    confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence score between 0.0 and 1.0")
+    supersedes_decision_id: str | None = Field(None, description="Previous decision ID that this supersedes")
+```
+
 ---
 
 ## 3. PostgreSQL Relational Schema (DDL)
@@ -264,6 +278,123 @@ CREATE TABLE audit_logs (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX idx_audit_org ON audit_logs(organization_id, created_at);
+
+-- 7. SLACK DISCUSSION THREADS & DEBOUNCING
+CREATE TABLE slack_threads (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    channel_id TEXT NOT NULL,
+    thread_ts TEXT NOT NULL,
+    root_text TEXT NOT NULL,
+    reply_count INT NOT NULL DEFAULT 0,
+    messages JSONB NOT NULL DEFAULT '[]'::jsonb,
+    status TEXT NOT NULL DEFAULT 'ACTIVE', -- ACTIVE, DEBOUNCING, PROCESSED, DISCARDED
+    decision_extracted BOOLEAN NOT NULL DEFAULT FALSE,
+    extracted_decision_id TEXT,
+    last_activity_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT uq_slack_thread_org UNIQUE (organization_id, channel_id, thread_ts)
+);
+CREATE INDEX idx_slack_threads_org ON slack_threads(organization_id);
+CREATE INDEX idx_slack_threads_status ON slack_threads(status);
+
+-- 8. DECISION HUMAN-REVIEW QUEUE (< 0.70 CONFIDENCE)
+CREATE TABLE decision_review_queue (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    decision_id TEXT NOT NULL,
+    task_key TEXT,
+    title TEXT NOT NULL,
+    rationale TEXT NOT NULL,
+    confidence NUMERIC(3, 2) NOT NULL,
+    source TEXT NOT NULL DEFAULT 'SLACK_THREAD',
+    status TEXT NOT NULL DEFAULT 'PENDING_REVIEW', -- PENDING_REVIEW, APPROVED, REJECTED
+    reviewed_by TEXT,
+    reviewed_at TIMESTAMPTZ,
+    thread_ref JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT uq_review_queue_org_decision UNIQUE (organization_id, decision_id)
+);
+CREATE INDEX idx_decision_review_org ON decision_review_queue(organization_id);
+CREATE INDEX idx_decision_review_status ON decision_review_queue(status);
+
+-- 9. LLM TOKEN & COST TRACKING LOG
+CREATE TABLE llm_usage_log (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    feature TEXT NOT NULL, -- slack_decision_classification, slack_decision_extraction, chat
+    model TEXT NOT NULL,
+    prompt_tokens INT NOT NULL DEFAULT 0,
+    completion_tokens INT NOT NULL DEFAULT 0,
+    total_tokens INT NOT NULL DEFAULT 0,
+    cost_usd NUMERIC(10, 6) NOT NULL DEFAULT 0.0,
+    timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_llm_usage_org_time ON llm_usage_log(organization_id, timestamp);
+
+-- 10. RESUMABLE 120-DAY CLOUD HISTORICAL BACKFILL JOBS
+CREATE TABLE backfill_jobs (
+    id TEXT PRIMARY KEY,
+    organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    source TEXT NOT NULL, -- github, jira, slack, all
+    target TEXT NOT NULL,
+    days INT NOT NULL DEFAULT 120,
+    status TEXT NOT NULL DEFAULT 'QUEUED', -- QUEUED, RUNNING, COMPLETED, FAILED, PAUSED
+    progress INT NOT NULL DEFAULT 0, -- percentage 0-100
+    items_processed INT NOT NULL DEFAULT 0,
+    checkpoint JSONB NOT NULL DEFAULT '{}'::jsonb,
+    error_message TEXT,
+    started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    completed_at TIMESTAMPTZ
+);
+CREATE INDEX idx_backfill_jobs_org ON backfill_jobs(organization_id);
+
+-- 11. VECTOR EMBEDDINGS & COSINE SIMILARITY RPC (Migration 006)
+CREATE TABLE embeddings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id TEXT NOT NULL,
+    entity_id TEXT NOT NULL,
+    entity_type TEXT NOT NULL,
+    text_content TEXT NOT NULL,
+    embedding vector(768) NOT NULL,
+    metadata JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_embeddings_org ON embeddings(organization_id);
+CREATE INDEX idx_embeddings_cosine ON embeddings USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+
+CREATE OR REPLACE FUNCTION match_embeddings(
+    query_embedding vector(768),
+    match_threshold float DEFAULT 0.2,
+    match_count int DEFAULT 5,
+    filter_org_id text DEFAULT NULL,
+    filter_entity_type text DEFAULT NULL
+)
+RETURNS TABLE (
+    id UUID,
+    entity_id TEXT,
+    entity_type TEXT,
+    text_content TEXT,
+    similarity float,
+    metadata JSONB
+)
+LANGUAGE sql STABLE
+AS $$
+    SELECT
+        embeddings.id,
+        embeddings.entity_id,
+        embeddings.entity_type,
+        embeddings.text_content,
+        1 - (embeddings.embedding <=> query_embedding) AS similarity,
+        embeddings.metadata
+    FROM embeddings
+    WHERE
+        (filter_org_id IS NULL OR embeddings.organization_id = filter_org_id)
+        AND (filter_entity_type IS NULL OR embeddings.entity_type = filter_entity_type)
+        AND 1 - (embeddings.embedding <=> query_embedding) > match_threshold
+    ORDER BY similarity DESC
+    LIMIT match_count;
+$$;
 ```
 
 ---
@@ -280,7 +411,17 @@ CREATE CONSTRAINT service_id_unique IF NOT EXISTS FOR (s:Service) REQUIRE s.id I
 CREATE CONSTRAINT decision_id_unique IF NOT EXISTS FOR (d:Decision) REQUIRE d.id IS UNIQUE;
 CREATE CONSTRAINT incident_id_unique IF NOT EXISTS FOR (i:Incident) REQUIRE i.id IS UNIQUE;
 
-// 2. Query Decision Lineage & Supersedes Traversal
+// 2. Multi-Tenant Decision Lineage Indexes (Migration 002)
+CREATE INDEX decision_source_idx IF NOT EXISTS
+FOR (d:Decision) ON (d.org_id, d.source);
+
+CREATE INDEX decision_confidence_idx IF NOT EXISTS
+FOR (d:Decision) ON (d.org_id, d.confidence);
+
+CREATE INDEX decision_timestamp_idx IF NOT EXISTS
+FOR (d:Decision) ON (d.org_id, d.timestamp);
+
+// 3. Query Decision Lineage & Supersedes Traversal
 MATCH (t:Task {key: $task_key, organization_id: $org_id})<-[:JUSTIFIES]-(d:Decision)
 OPTIONAL MATCH (d)-[:SUPERSEDES]->(old:Decision)
 RETURN d.id AS decision_id, d.title AS title, d.rationale AS rationale, d.status AS status, old.title AS supersedes;

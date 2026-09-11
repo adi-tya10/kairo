@@ -50,6 +50,26 @@ class Settings(BaseSettings):
             return [str(item).strip().rstrip('/') for item in v if str(item).strip()]
         return []
 
+    # Reverse Proxies & Rate Limiting
+    TRUSTED_PROXIES: list[str] | str = ["127.0.0.1", "::1"]
+
+    @field_validator("TRUSTED_PROXIES", mode="after")
+    @classmethod
+    def parse_trusted_proxies(cls, v: Any) -> list[str]:
+        if isinstance(v, str):
+            trimmed = v.strip()
+            if trimmed.startswith("[") and trimmed.endswith("]"):
+                try:
+                    parsed = json.loads(trimmed)
+                    if isinstance(parsed, list):
+                        return [str(p).strip() for p in parsed if str(p).strip()]
+                except Exception:
+                    pass
+            return [p.strip() for p in trimmed.split(",") if p.strip()]
+        if isinstance(v, list):
+            return [str(p).strip() for p in v if str(p).strip()]
+        return ["127.0.0.1", "::1"]
+
     # Supabase / PostgreSQL
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/kairo"
     SUPABASE_URL: str = ""
@@ -77,6 +97,15 @@ class Settings(BaseSettings):
     LINEAR_WEBHOOK_SECRET: str = "kairo_linear_webhook_secret_local"
     GITLAB_WEBHOOK_SECRET: str = "kairo_gitlab_webhook_secret_local"
     SLACK_WEBHOOK_URL: str = ""
+    SLACK_SIGNING_SECRET: str = "kairo_slack_signing_secret_local"
+    SLACK_BOT_TOKEN: str = ""
+
+    # Knowledge Graph & Ingestion Settings
+    MAX_DAILY_LLM_SPEND_USD: float = 10.0
+    SLACK_NOISE_MIN_WORDS: int = 15
+    DECISION_CONFIDENCE_THRESHOLD: float = 0.70
+    ENABLE_SLACK_INGESTION: bool = True
+    ENABLE_HISTORICAL_BACKFILL: bool = True
 
     # SMTP / Transactional Email (Brevo / Gmail / Standard Relay)
     SMTP_HOST: str = "smtp-relay.brevo.com"

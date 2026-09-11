@@ -1,19 +1,20 @@
 import time
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel
-from supabase import Client
-
+from apps.api.app.core.config import get_settings
 from apps.api.app.core.database import get_db
 from apps.api.app.core.logging import get_logger
+from apps.api.app.core.network import get_client_ip
 from apps.api.app.core.security import (
     create_access_token,
     get_current_user,
     hash_password,
     verify_password,
 )
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from packages.schemas.permissions import UserPermissionProfile
+from pydantic import BaseModel
+from supabase import Client
 
 logger = get_logger("kairo.api.auth")
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -125,7 +126,8 @@ async def register_organization(
     db: Annotated[Client, Depends(get_db)],
 ) -> AuthResponse:
     """Registers a new tenant organization and admin credentials in PostgreSQL."""
-    client_ip = request.client.host if request.client else "unknown"
+    settings = get_settings()
+    client_ip = get_client_ip(request, settings.TRUSTED_PROXIES)
     _check_rate_limit(f"reg_{client_ip}")
 
     email_key = request_body.admin_email.lower().strip()
@@ -174,15 +176,20 @@ async def register_organization(
     except HTTPException:
         raise
     except Exception as exc:
-        logger.warning(f"Database write failed during register, using fallback: {exc}")
-        # Check ephemeral cache
+        logger.warning(f"Database write failed during register: {exc}")
+        if settings.APP_ENV == "production":
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Authentication database is temporarily unavailable. Please try again later.",
+            )
+        # Check ephemeral cache in development/test
         if email_key in _ephemeral_user_cache:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Organization admin account for '{request_body.admin_email}' already exists. Please sign in.",
             )
 
-    # Cache for resilience
+    # Cache for resilience in development/test environments only
     user_data = {
         "user_id": user_id,
         "email": email_key,
@@ -193,7 +200,8 @@ async def register_organization(
         "is_org_admin": True,
         "allowed_repos": [f"{org_id}/primary-repo"],
     }
-    _ephemeral_user_cache[email_key] = user_data
+    if settings.APP_ENV != "production":
+        _ephemeral_user_cache[email_key] = user_data
 
     token = create_access_token({
         "sub": user_data["user_id"],
@@ -208,12 +216,12 @@ async def register_organization(
     return AuthResponse(
         access_token=token,
         token_type="bearer",
-        user_id=str(user_data["user_id"]),
-        email=str(user_data["email"]),
-        name=str(user_data["name"]),
-        organization_id=str(user_data["organization_id"]),
-        company_name=str(user_data["company_name"]),
-        is_org_admin=bool(user_data["is_org_admin"]),
+        user_id=user_data["user_id"],
+        email=user_data["email"],
+        name=user_data["name"],
+        organization_id=user_data["organization_id"],
+        company_name=user_data["company_name"],
+        is_org_admin=user_data["is_org_admin"],
         allowed_repos=[str(r) for r in reg_repos],
     )
 
@@ -225,7 +233,8 @@ async def login_user(
     db: Annotated[Client, Depends(get_db)],
 ) -> AuthResponse:
     """Authenticates credentials against PostgreSQL with constant-time password verification."""
-    client_ip = request.client.host if request.client else "unknown"
+    settings = get_settings()
+    client_ip = get_client_ip(request, settings.TRUSTED_PROXIES)
     _check_rate_limit(f"login_{client_ip}")
 
     email_key = request_body.email.lower().strip()
@@ -251,10 +260,15 @@ async def login_user(
                 "allowed_repos": repos,
             }
     except Exception as exc:
-        logger.warning(f"Database query failed during login (using fallback): {exc}")
+        logger.warning(f"Database query failed during login: {exc}")
+        if settings.APP_ENV == "production":
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Authentication database is temporarily unavailable. Please try again later.",
+            )
 
-    # Fallback to cache if DB was unreachable
-    if not user_record:
+    # Fallback to cache if DB was unreachable in dev/test only
+    if not user_record and settings.APP_ENV != "production":
         user_record = _ephemeral_user_cache.get(email_key)
 
     if not user_record or not user_record.get("password_hash") or not verify_password(request_body.password, user_record["password_hash"]):

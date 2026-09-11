@@ -4,10 +4,12 @@ from fastapi import APIRouter, Depends, status
 from supabase import Client
 
 from apps.api.app.core.database import get_db
+from apps.api.app.core.logging import get_logger
 from apps.api.app.core.security import get_current_user
 from apps.api.app.services.acl import PreRetrievalACL
 from packages.schemas.permissions import UserPermissionProfile
 
+logger = get_logger("kairo.api.context")
 router = APIRouter(prefix="/context", tags=["Context"])
 
 
@@ -41,8 +43,8 @@ async def get_work_item_context(
             rows = _rows(res.data)
             if rows:
                 work_item_data = rows[0]
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Error querying work_items for external_id {external_id}: {e}", exc_info=True)
 
         try:
             c_res = db.table("events_raw").select("payload").eq("organization_id", profile.organization_id).limit(20).execute()
@@ -55,8 +57,8 @@ async def get_work_item_context(
                         sha = str(c.get("id") or c.get("sha", ""))
                         if sha and sha not in linked_commits:
                             linked_commits.append(sha)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Error querying events_raw for external_id {external_id}: {e}", exc_info=True)
 
     return {
         "status": "authorized",

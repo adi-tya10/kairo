@@ -209,7 +209,9 @@
 ## 7. Historical Cold-Start Repository Sync (`/sync`)
 
 * **Path:** `POST /api/v1/sync/historical`
+* **Header:** `Authorization: Bearer <token>`
 * **Status Code:** `200 OK`
+* **Security Gate:** Enforces `Depends(get_current_user)` authentication, path traversal guards (`..` rejection), and `PreRetrievalACL.validate_tenant_access`.
 * **Request:**
   ```json
   {
@@ -224,6 +226,49 @@
     "organization_id": "snapmeet",
     "commits_indexed": 50,
     "status": "COMPLETED"
+  }
+  ```
+
+* **Path:** `POST /api/v1/sync/cloud`
+* **Header:** `Authorization: Bearer <token>`
+* **Status Code:** `202 Accepted`
+* **Security Gate:** Enforces `Depends(get_current_user)` authentication and `PreRetrievalACL.validate_tenant_access`.
+* **Request:**
+  ```json
+  {
+    "organization_id": "snapmeet",
+    "days": 120,
+    "sources": ["github", "jira", "slack"]
+  }
+  ```
+* **Response:**
+  ```json
+  {
+    "job_id": "bf_a1b2c3d4e5f6",
+    "organization_id": "snapmeet",
+    "days": 120,
+    "sources": ["github", "jira", "slack"],
+    "status": "QUEUED"
+  }
+  ```
+
+* **Path:** `GET /api/v1/sync/status/{job_id}`
+* **Header:** `Authorization: Bearer <token>`
+* **Status Code:** `200 OK`
+* **Response:**
+  ```json
+  {
+    "job_id": "bf_a1b2c3d4e5f6",
+    "organization_id": "snapmeet",
+    "status": "RUNNING",
+    "progress": 70,
+    "items_processed": 142,
+    "checkpoint": {
+      "github_cursor": 4,
+      "jira_start_at": 50,
+      "slack_cursor": "dXNlcjpVMTIz"
+    },
+    "error_message": null
   }
   ```
 
@@ -364,3 +409,25 @@ All endpoints in `/team` are backed by persistent PostgreSQL tables via Supabase
     "provider": "gemini"
   }
   ```
+
+---
+
+## 12. Architecture Diagram Parsing (`/diagrams`)
+
+* **Path:** `POST /api/v1/diagrams/parse`
+* **Header:** `Authorization: Bearer <token>`
+* **Content-Type:** `multipart/form-data`
+* **Status Code:** `202 Accepted`
+* **Security Gate:** Enforces `Depends(get_current_user)` authentication and tenant-scoped task dispatch.
+* **Form Fields:**
+  - `file`: Diagram image file (PNG / JPEG)
+  - `organization_id`: Target tenant identifier
+* **Response:**
+  ```json
+  {
+    "task_id": "c1f7b0e2-8924-4d87-9bc6-e24c45b84931",
+    "status": "PROCESSING",
+    "message": "Diagram uploaded and queued for visual dependency extraction."
+  }
+  ```
+

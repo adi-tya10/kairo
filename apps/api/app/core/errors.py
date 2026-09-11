@@ -48,6 +48,23 @@ class SignatureVerificationError(KairoError):
             status_code=status.HTTP_401_UNAUTHORIZED,
         )
 
+class DatabaseError(KairoError):
+    def __init__(self, message: str = "Database operation failed", details: dict[str, Any] | None = None):
+        super().__init__(
+            message=message,
+            error_code="DATABASE_ERROR",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            details=details,
+        )
+
+class DatabaseWriteError(DatabaseError):
+    def __init__(self, message: str = "Failed to persist record to database", details: dict[str, Any] | None = None):
+        super().__init__(
+            message=message,
+            details=details,
+        )
+        self.error_code = "DATABASE_WRITE_ERROR"
+
 
 async def kairo_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """RFC 7807 problem details handler for KairoError and derived exceptions."""

@@ -5,8 +5,11 @@ from workers.tasks.ingest import extract_linked_keys
 
 class GitSyncService:
     """
-    4-Tier Evidence Resolution & Git Normalization Service.
-    Resolves commits and PR diffs to declared Jira work items.
+    2-Tier Deterministic Evidence Resolution & Git Normalization Service.
+    Resolves commits and PR diffs to declared Jira/Linear work items via:
+      Tier 1: Explicit issue key links in PR metadata and branch naming patterns.
+      Tier 2: Commit message issue key token matching and regex extraction.
+    (Tier 3 Semantic Cosine and Tier 4 Temporal Proximity are roadmap additions).
     """
 
     @staticmethod

@@ -1,5 +1,3 @@
-from fastapi import APIRouter
-
 from apps.api.app.api.v1 import (
     alerts,
     auth,
@@ -13,7 +11,8 @@ from apps.api.app.api.v1 import (
     sync,
     team,
 )
-from apps.api.app.api.v1.webhooks import github, gitlab, jira, linear
+from apps.api.app.api.v1.webhooks import github, gitlab, jira, linear, slack
+from fastapi import APIRouter
 
 api_v1_router = APIRouter()
 api_v1_router.include_router(auth.router)
@@ -31,3 +30,4 @@ api_v1_router.include_router(github.router)
 api_v1_router.include_router(jira.router)
 api_v1_router.include_router(linear.router)
 api_v1_router.include_router(gitlab.router)
+api_v1_router.include_router(slack.router)

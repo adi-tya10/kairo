@@ -19,6 +19,10 @@ import {
   ChevronRight,
 } from "lucide-react";
 
+const API_BASE: string =
+  (import.meta.env.VITE_KAIRO_API_URL as string) ||
+  "https://kairo-web-91or.onrender.com/api/v1";
+
 interface ChatAssistantProps {
   organizationId: string;
   repoId: string;
@@ -274,7 +278,7 @@ export const ChatAssistant: React.FC<ChatAssistantProps> = ({
       }));
 
     try {
-      const res = await fetch("http://localhost:8000/api/v1/chat/query", {
+      const res = await fetch(`${API_BASE}/chat/query`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

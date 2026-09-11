@@ -4,6 +4,7 @@ Enforces strict typing across FastAPI Gateway, Celery Workers, and Clients.
 """
 
 from packages.schemas.anomaly import AnomalyRuleResult, AnomalySeverity, AnomalyType
+from packages.schemas.decision import ExtractedDecision
 from packages.schemas.github_event import (
     CIStatus,
     CommitInfo,
@@ -57,6 +58,7 @@ __all__ = [
     "EvidenceCitation",
     "EvidenceType",
     "ExecutiveBriefing",
+    "ExtractedDecision",
     "ExternalIdentity",
     "ExternalProvider",
     "HandoffPackage",

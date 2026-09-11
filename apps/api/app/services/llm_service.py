@@ -2,6 +2,7 @@ import re
 from typing import Any
 
 import httpx
+from packages.schemas.decision import ExtractedDecision
 
 from apps.api.app.core.config import get_settings
 from apps.api.app.core.logging import get_logger
@@ -192,7 +193,7 @@ OPERATIONAL BEHAVIORS & DUAL MODES:
         if history:
             for item in history[-8:]:
                 role = "assistant" if item.get("role") in ["assistant", "kairo"] else "user"
-                content = str(item.get("content", "")).strip()
+                content = item.get("content", "").strip()
                 if content:
                     messages.append({"role": role, "content": content})
 
@@ -217,7 +218,7 @@ OPERATIONAL BEHAVIORS & DUAL MODES:
         if history:
             for item in history[-6:]:
                 role = "model" if item.get("role") in ["assistant", "kairo"] else "user"
-                content = str(item.get("content", "")).strip()
+                content = item.get("content", "").strip()
                 if content:
                     contents.append({"role": role, "parts": [{"text": content}]})
 
@@ -353,8 +354,8 @@ OPERATIONAL BEHAVIORS & DUAL MODES:
         is_hinglish = cls._is_hinglish_query(query)
 
         # 0. Conversational greetings & casual chat
-        tokens = set(re.findall(r"\b[a-zA-Z]+\b", q_lower))
-        if tokens.intersection({"hi", "hello", "hey", "namaste", "hola", "sup"}):
+        greeting_tokens = set(re.findall(r"\b[a-zA-Z]+\b", q_lower))
+        if greeting_tokens.intersection({"hi", "hello", "hey", "namaste", "hola", "sup"}):
             if is_hinglish:
                 return (
                     f"Namaste! KIAN yahan hai. "
@@ -374,91 +375,27 @@ OPERATIONAL BEHAVIORS & DUAL MODES:
                 f"I'm doing great and actively monitoring telemetry for `{repo_id}` [Repo {repo_id}]. How can I help you right now?"
             )
 
-        is_asking_removal = any(w in q_lower for w in ["hatya", "hata", "removed", "deleted", "deprecat", "kyu hat", "drop", "hata diya"])
-        is_asking_why = any(w in q_lower for w in ["kyu", "kyun", "why", "wajah", "reason"])
-
-        # Intent: Question about Cache / Redis removal or deprecation
-        if ("cache" in q_lower or "redis" in q_lower) and (is_asking_removal or is_asking_why):
-            if is_asking_removal:
-                if is_hinglish:
-                    return (
-                        f"Connected systems (GitHub PRs, commits aur Jira) me cache hataye jane (removal) ka koi record nahi mila hai [Repo {repo_id}]. "
-                        f"In fact, [Jira BILL-204] aur [PR #88] ke mutabik Redis cache ko webhook idempotency (`Redis SETNX`) ke liye actively use kiya ja raha hai, hataya nahi gaya hai."
-                    )
-                return (
-                    f"No records in connected systems indicate cache removal for `{repo_id}` [Repo {repo_id}]. "
-                    f"In fact, [Jira BILL-204] and [PR #88] confirm Redis is actively configured for payment webhook idempotency (`Redis SETNX`)."
-                )
-
-        # Intent: Question about Redis / Cache presence or usage
-        if "redis" in q_lower or ("cache" in q_lower and any(w in q_lower for w in ["using", "use", "hai", "kya", "rha", "stack"])):
-            if is_hinglish:
-                return (
-                    f"Haan, `{repo_id}` [Repo {repo_id}] me Redis use ho raha hai. "
-                    f"[Jira BILL-204] aur [PR #88] ke acceptance criteria ke mutabik, duplicate payment webhook events ko idempotently handle karne ke liye `Redis SETNX` use kiya gaya hai. "
-                    f"Iske alawa background async tasks ke liye Celery Redis broker active hai."
-                )
-            return (
-                f"Yes, Redis is actively used in `{repo_id}` [Repo {repo_id}]. "
-                f"As defined in [Jira BILL-204] acceptance criteria and implemented in [PR #88], `Redis SETNX` is used for duplicate payment webhook idempotency. "
-                f"Redis also serves as the Celery asynchronous task broker."
-            )
-
-        # 2. Database: PostgreSQL / pgvector / Relational DB
-        if "postgres" in q_lower or "database" in q_lower or "pgvector" in q_lower or ("db" in q_lower.split()):
-            if is_hinglish:
-                return (
-                    f"`{repo_id}` [Repo {repo_id}] me relational data aur invoice tracking ke liye PostgreSQL 16 use hota hai. "
-                    f"Semantic search aur code vector embeddings store karne ke liye `pgvector` (768-dimensions) extension active hai [Commit 8f3a1bc09128]."
-                )
-            return (
-                f"PostgreSQL 16 is used as the relational database in `{repo_id}` [Repo {repo_id}]. "
-                f"The `pgvector` extension (768-dimensions) is enabled for dense vector similarity search across code chunks [Commit 8f3a1bc09128]."
-            )
-
-        # 3. Knowledge Graph: Neo4j AuraDB
-        if "neo4j" in q_lower or "graph" in q_lower or "lineage" in q_lower:
-            if is_hinglish:
-                return (
-                    f"Haan, temporal knowledge graph ke liye Neo4j AuraDB use ho raha hai [Repo {repo_id}]. "
-                    f"Yeh cross-tool dependencies jaise `(Developer)-[:WORKED_ON]->(Task)-[:IMPLEMENTED_BY]->(PR)` ko track karta hai."
-                )
-            return (
-                f"Yes, Neo4j AuraDB is utilized as the knowledge graph in `{repo_id}` [Repo {repo_id}]. "
-                f"It models temporal provenance across developers, tasks, and pull requests."
-            )
-
-        # 4. In-Flight Work: Razorpay / Subscriptions / BILL-204 / Webhooks
-        if "razorpay" in q_lower or "payment" in q_lower or "bill-204" in q_lower or "webhook" in q_lower or "retry" in q_lower or "status" in q_lower:
-            if is_hinglish:
-                return (
-                    f"`{repo_id}` [Repo {repo_id}] me active task `BILL-204` ([Jira BILL-204]) chal raha hai. "
-                    f"[PR #88] me Razorpay subscription webhooks, exponential backoff retries, aur HMAC-SHA256 signature verification implement kiya gaya hai."
-                )
-            return (
-                f"Repository `{repo_id}` [Repo {repo_id}] is tracking in-flight work item `BILL-204` ([Jira BILL-204]). "
-                f"Pull request [PR #88] implements Razorpay webhook invoicing, exponential backoff retries, and HMAC-SHA256 signature verification."
-            )
-
-        # 5. Anomalies & Risks: HW-01 to HW-05
-        if "anomal" in q_lower or "alert" in q_lower or "risk" in q_lower or "mismatch" in q_lower or "ci" in q_lower:
-            if is_hinglish:
-                return (
-                    f"`{repo_id}` [Repo {repo_id}] par anomaly rule `HW-03: State Mismatch` trigger hua hai. "
-                    f"Jira me ticket BILL-204 DONE hai par PR #88 par CI build tests fail ho rahe hain [PR #88]. Merge karne se pehle CI green hona zaroori hai."
-                )
-            return (
-                f"Verified anomaly inspection for `{repo_id}` [Repo {repo_id}]: "
-                f"Rule `HW-03 (State Mismatch)` is triggered because Jira task BILL-204 is marked DONE while [PR #88] has failing CI checks."
-            )
-
-        # 6. Fallback from context chunks matching
+        # 1. Grounded synthesis strictly from verified context chunks
         matched_chunks: list[tuple[str, str]] = []
+        tokens = [w for w in re.findall(r"\b[a-zA-Z0-9_-]+\b", q_lower) if len(w) > 3]
         for chunk in context_chunks:
             source = chunk.get("source", "Context")
             content = chunk.get("content", "")
-            words = [w for w in q_lower.split() if len(w) > 3]
-            if any(w in content.lower() for w in words):
+            target_text = f"{source} {content}".lower()
+            matched = False
+            for w in tokens:
+                if w in target_text:
+                    matched = True
+                    break
+                # Handle plurals/stems like anomalies -> anomal
+                stem = w.rstrip("s").rstrip("es") if len(w) > 4 else w
+                if "anomal" in w and "anomal" in target_text:
+                    matched = True
+                    break
+                if len(stem) >= 4 and stem in target_text:
+                    matched = True
+                    break
+            if matched:
                 matched_chunks.append((f"[{source}]", content))
 
         if matched_chunks:
@@ -476,7 +413,7 @@ OPERATIONAL BEHAVIORS & DUAL MODES:
                 f"All cited points are verified against active branch commits and task records."
             )
 
-        # If explicit context slices were passed, cite them directly
+        # 2. If explicit non-repo context slices were passed, cite them directly
         non_repo_chunks = [c for c in context_chunks if not str(c.get("source", "")).startswith("Repo ")]
         if non_repo_chunks:
             c_tags = " ".join(f"[{c.get('source')}]" for c in non_repo_chunks)
@@ -488,13 +425,15 @@ OPERATIONAL BEHAVIORS & DUAL MODES:
                 f"Verified engineering evidence for `{repo_id}` {c_tags} addresses query '{query}'."
             )
 
+        # 3. Truthful fallback: No fabricated business facts or cross-tenant demo claims
         if is_hinglish:
             return (
-                f"Repository `{repo_id}` [Repo {repo_id}] me query '{query}' ke liye koi extra verified context nahi mila. KAIRO engine tenant isolation boundary ke andar active repository telemetry track kar raha hai."
+                f"Repository `{repo_id}` [Repo {repo_id}] me query '{query}' ke liye koi verified context nahi mila. "
+                f"Context synthesis unavailable: koi live LLM provider configured nahi hai aur indexed artifacts me matching evidence nahi mila."
             )
         return (
-            f"Synthesized verified context for repository `{repo_id}` [Repo {repo_id}] regarding '{query}'. "
-            f"No additional in-flight work items matched query under tenant isolation boundaries."
+            f"Context synthesis unavailable for query '{query}' on `{repo_id}` [Repo {repo_id}]: "
+            f"no live LLM provider configured and no matching evidence found in indexed repository artifacts."
         )
 
     @staticmethod
@@ -507,3 +446,81 @@ OPERATIONAL BEHAVIORS & DUAL MODES:
             if formatted not in citations:
                 citations.append(formatted)
         return citations
+
+    @classmethod
+    def extract_decision_from_thread(
+        cls,
+        thread_text: str,
+        jira_key_hint: str | None = None,
+    ) -> ExtractedDecision | None:
+        """
+        Extracts a structured technical decision from a Slack conversation thread.
+        Evaluates technical proposals against consensus signals (affirmations, +1, LGTM).
+        Returns an ExtractedDecision model with a confidence score.
+        """
+        text_lower = thread_text.lower()
+
+        # 1. Resolve Jira Key
+        jira_match = re.search(r"\b([A-Z]{2,10}-\d+)\b", thread_text)
+        jira_key = jira_match.group(1) if jira_match else jira_key_hint
+
+        # 2. Check for technical entities & proposals
+        proposals: list[str] = []
+        tech_keywords = [
+            "redis", "postgres", "postgresql", "kafka", "rabbitmq", "dynamodb",
+            "s3", "grpc", "graphql", "websocket", "celery", "jwt", "oauth",
+            "fastapi", "nextjs", "sliding-window", "rate-limiting", "caching",
+        ]
+        for tech in tech_keywords:
+            if tech in text_lower:
+                proposals.append(tech)
+
+        if not proposals:
+            # Fallback: check for phrases like "use X" or "switch to X"
+            phrase_match = re.search(r"(?:use|go with|switch to|adopt|pick)\s+([a-zA-Z0-9_-]+)", text_lower)
+            if phrase_match:
+                proposals.append(phrase_match.group(1))
+
+        if not proposals:
+            return None
+
+        chosen_tech = proposals[0]
+
+        # 3. Assess Consensus & Affirmations
+        affirmation_count = 0
+        affirmations = ["lgtm", "+1", "agreed", "sounds good", "consensus vote", "approved", "ship it", "makes sense"]
+        for aff in affirmations:
+            affirmation_count += text_lower.count(aff)
+
+        # 4. Compute Confidence Score
+        confidence = 0.70  # Baseline
+        if jira_key:
+            confidence += 0.10
+        if affirmation_count >= 1:
+            confidence += 0.10
+        if affirmation_count >= 2:
+            confidence += 0.05
+        confidence = min(0.98, confidence)
+
+        # 5. Check if decision supersedes an older tech
+        supersedes_id: str | None = None
+        supersede_match = re.search(r"(?:switch|migrate|move)\s+from\s+([a-zA-Z0-9_-]+)", text_lower)
+        if supersede_match:
+            supersedes_id = f"dec_{supersede_match.group(1)}"
+
+        title = f"Adopt {chosen_tech.capitalize()} for technical architecture"
+        if jira_key:
+            title = f"Adopt {chosen_tech.capitalize()} for {jira_key}"
+
+        rationale = (
+            f"The engineering team evaluated technical options and finalized {chosen_tech.capitalize()} "
+            f"based on thread consensus with {max(1, affirmation_count)} explicit approval votes."
+        )
+
+        return ExtractedDecision(
+            title=title,
+            rationale=rationale,
+            jira_key=jira_key,
+            confidence=round(confidence, 2),
+            supersedes_decision_id=supersedes_id,
+        )

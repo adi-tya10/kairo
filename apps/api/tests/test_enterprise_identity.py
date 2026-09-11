@@ -1,6 +1,10 @@
+import hashlib
+
 import pytest
 from fastapi.testclient import TestClient
 
+from apps.api.app.core.config import get_settings
+from apps.api.app.core.errors import DatabaseWriteError
 from apps.api.app.core.security import create_access_token
 from apps.api.app.main import app
 from apps.api.app.services.identity_service import IdentityService
@@ -86,10 +90,13 @@ def test_invitation_lifecycle(auth_headers: dict[str, str]) -> None:
     assert inv_data["email"] == "priya@snapmeet.com"
     token = inv_data["token"]
 
-    # 2. List Invitations
+    # 2. List Invitations: verify stored token is the SHA-256 hash, NOT raw secret
+    expected_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
     res_list = client.get("/api/v1/identity/invitations", headers=auth_headers)
     assert res_list.status_code == 200
-    assert any(i["token"] == token for i in res_list.json())
+    invitations = res_list.json()
+    assert any(i["token"] == expected_hash for i in invitations)
+    assert not any(i["token"] == token for i in invitations)
 
     # 3. Employee accepts invitation
     res_accept = client.post(
@@ -293,4 +300,67 @@ def test_device_edge_cases_and_resolver(auth_headers: dict[str, str], dev_header
     # 3. Resolve unknown user returns None
     assert IdentityService.resolve_canonical_user_id("snapmeet", "github", external_username="unknown_user_99999") is None
     assert IdentityService.resolve_canonical_user_id("snapmeet", "github", email="unknown_email@snapmeet.com") is None
+
+
+def test_invitation_token_hashing_security(auth_headers: dict[str, str]) -> None:
+    """
+    P2.1 Acceptance Test:
+    Ensures raw invitation token is never stored in plaintext in the database or memory store.
+    Confirms acceptance fails with an invalid token and succeeds only with exact raw token.
+    """
+    inv = IdentityService.create_invitation(
+        organization_id="snapmeet",
+        email="security_test@snapmeet.com",
+        name="Security Tester",
+    )
+    raw_token = inv.token
+    expected_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+
+    # Verify memory store stores the hash, not the raw token
+    mem_invs = IdentityService._mem_invitations.get("snapmeet", [])
+    matched_mem = next((i for i in mem_invs if i["email"] == "security_test@snapmeet.com"), None)
+    assert matched_mem is not None
+    assert matched_mem.get("token_hash") == expected_hash
+    assert "token" not in matched_mem or matched_mem.get("token") != raw_token
+
+    # Verify invalid token fails acceptance
+    with pytest.raises(ValueError, match="Invalid or expired invitation token"):
+        IdentityService.accept_invitation("invalid_token_123", "Tester", "Password123!")
+
+    # Verify accepting with correct raw token succeeds
+    accepted = IdentityService.accept_invitation(raw_token, "Tester", "Password123!")
+    assert accepted["email"] == "security_test@snapmeet.com"
+
+
+def test_identity_production_db_error_enforcement(monkeypatch: pytest.MonkeyPatch, auth_headers: dict[str, str]) -> None:
+    """
+    P2.2 Acceptance Test:
+    Ensures that when APP_ENV is 'production', any DB unavailability or write failure
+    raises DatabaseWriteError (HTTP 500) rather than silently swallowing errors and falling back to memory.
+    """
+    settings = get_settings()
+    monkeypatch.setattr(settings, "APP_ENV", "production")
+
+    # Mock _safe_get_db to return None (database connection down)
+    monkeypatch.setattr("apps.api.app.services.identity_service._safe_get_db", lambda: None)
+
+    # Calling create_team in production with DB down MUST raise DatabaseWriteError
+    with pytest.raises(DatabaseWriteError) as exc_info:
+        IdentityService.create_team("snapmeet", "New Failing Team")
+    assert "Database connection unavailable for create_team" in str(exc_info.value)
+
+    # Calling create_invitation in production with DB down MUST raise DatabaseWriteError
+    with pytest.raises(DatabaseWriteError) as exc_info:
+        IdentityService.create_invitation("snapmeet", "failing@snapmeet.com")
+    assert "Database connection unavailable for create_invitation" in str(exc_info.value)
+
+    # Calling API endpoint returns HTTP 500
+    res = client.post(
+        "/api/v1/identity/teams",
+        headers=auth_headers,
+        json={"name": "Prod Failed Team"},
+    )
+    assert res.status_code == 500
+    err_body = res.json()
+    assert err_body["title"] == "DATABASE_WRITE_ERROR"
 

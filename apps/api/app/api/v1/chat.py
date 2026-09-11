@@ -6,12 +6,15 @@ from pydantic import BaseModel
 from supabase import Client
 
 from apps.api.app.core.database import get_db, get_graph_db
+from apps.api.app.core.logging import get_logger
 from apps.api.app.core.security import get_current_user
 from apps.api.app.services.acl import PreRetrievalACL
 from apps.api.app.services.graph_service import GraphLineageService
 from apps.api.app.services.llm_service import LLMService
 from packages.schemas.permissions import UserPermissionProfile
+from workers.tasks.embeddings import generate_768_embedding
 
+logger = get_logger("kairo.api.chat")
 router = APIRouter(prefix="/chat", tags=["Chat"])
 
 
@@ -67,25 +70,43 @@ async def query_chat(
             "content": f"Verified context slice for {clean_key} on repository {request_body.repo_id}.",
         })
 
-    # 3. Dynamic Evidence from PostgreSQL Embeddings & Work Items
+    # 3. Dynamic Evidence from pgvector Embeddings (via match_embeddings RPC) & Work Items
     if db:
         try:
-            emb_res = (
-                db.table("embeddings")
-                .select("entity_type, entity_id, content_chunk")
-                .eq("organization_id", request_body.organization_id)
-                .eq("repo_id", request_body.repo_id)
-                .limit(5)
-                .execute()
-            )
-            for r in _rows(emb_res.data):
-                source_tag = f"{r.get('entity_type', 'chunk')} {r.get('entity_id', '')}".strip()
-                context_chunks.append({
-                    "source": source_tag,
-                    "content": str(r.get("content_chunk", "")),
-                })
-        except Exception:
-            pass
+            query_vec = generate_768_embedding(request_body.query)
+            emb_res = db.rpc("match_embeddings", {
+                "query_embedding": query_vec,
+                "match_threshold": 0.0,
+                "match_count": 5,
+                "filter_organization_id": request_body.organization_id,
+                "filter_repo_id": request_body.repo_id,
+            }).execute()
+            rows = _rows(emb_res.data)
+            if rows:
+                for r in rows:
+                    source_tag = f"{r.get('entity_type', 'chunk')} {r.get('entity_id', '')}".strip()
+                    context_chunks.append({
+                        "source": source_tag,
+                        "content": str(r.get("content_chunk", "")),
+                    })
+            else:
+                # Direct table fallback
+                fb_res = (
+                    db.table("embeddings")
+                    .select("entity_type, entity_id, content_chunk")
+                    .eq("organization_id", request_body.organization_id)
+                    .eq("repo_id", request_body.repo_id)
+                    .limit(5)
+                    .execute()
+                )
+                for r in _rows(fb_res.data):
+                    source_tag = f"{r.get('entity_type', 'chunk')} {r.get('entity_id', '')}".strip()
+                    context_chunks.append({
+                        "source": source_tag,
+                        "content": str(r.get("content_chunk", "")),
+                    })
+        except Exception as e:
+            logger.warning(f"Vector embedding retrieval failed: {e}", exc_info=True)
 
         try:
             work_res = (
@@ -101,8 +122,8 @@ async def query_chat(
                     "source": f"Jira {t_key}",
                     "content": f"Task {t_key}: {w.get('title')} (Status: {w.get('status')}). {w.get('description', '')}",
                 })
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Work item context retrieval failed: {e}", exc_info=True)
 
     # 4. Dynamic Evidence from Neo4j Temporal Provenance Decisions
     try:
@@ -120,8 +141,8 @@ async def query_chat(
                     "source": f"ADR {d.decision_id}",
                     "content": f"Decision {d.decision_id}: {d.title} (Status: {d.status})",
                 })
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"Graph lineage decision retrieval failed: {e}", exc_info=True)
 
     # 5. Base repository telemetry scope
     context_chunks.append({

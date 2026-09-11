@@ -106,8 +106,8 @@ async def generate_handoff(
             hw05_result = AnomalyEngine.evaluate_hw05_orphaned_dependency(repo_maintainers)
             if hw05_result.triggered:
                 anomalies.append(hw05_result)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"HW-05 orphaned dependency evaluation failed: {e}", exc_info=True)
 
     # 3. Generate Grounded Handoff Package with Citations
     package = GroundedSynthesisEngine.generate_handoff_package(

@@ -1,8 +1,13 @@
+import hashlib
+import hmac
 import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from apps.api.app.core.config import get_settings
 from apps.api.app.core.database import get_db
+from apps.api.app.core.errors import DatabaseError, DatabaseWriteError
+from apps.api.app.core.logging import get_logger
 from apps.api.app.core.security import hash_password
 from packages.schemas.identity import (
     Device,
@@ -17,13 +22,16 @@ from packages.schemas.identity import (
     UserStatus,
 )
 
+logger = get_logger("kairo.identity_service")
+
 
 def _safe_get_db() -> Any:
     """Safely acquires a DB client from get_db(), returning None on connection failure."""
     try:
         gen = get_db()
         return next(gen)
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Database client could not be acquired: {e}")
         return None
 
 
@@ -83,6 +91,30 @@ class IdentityService:
     }
     _auth_codes_store: dict[str, dict[str, Any]] = {}
 
+    @classmethod
+    def _require_db_for_write(cls, operation: str) -> Any:
+        """
+        Acquires DB client. In production, if DB is unavailable, raises DatabaseWriteError.
+        In development/testing, returns DB client or None (permitting memory fallback).
+        """
+        settings = get_settings()
+        db = _safe_get_db()
+        if not db and settings.APP_ENV == "production":
+            logger.error(f"Database connection unavailable for write operation '{operation}' in production")
+            raise DatabaseWriteError(f"Database connection unavailable for {operation}")
+        return db
+
+    @classmethod
+    def _handle_db_write_exception(cls, operation: str, error: Exception) -> None:
+        """
+        Logs database write failures. In production, raises DatabaseWriteError to prevent
+        split-brain in-memory corruption.
+        """
+        settings = get_settings()
+        logger.error(f"Database write failure in {operation}: {error}", exc_info=True)
+        if settings.APP_ENV == "production":
+            raise DatabaseWriteError(f"Database write failed for {operation}: {error}") from error
+
     # =========================================================================
     # Teams Management
     # =========================================================================
@@ -92,7 +124,27 @@ class IdentityService:
         team_id = f"team_{secrets.token_hex(4)}"
         now_iso = datetime.now(UTC).isoformat()
 
-        # Mirror in memory
+        # Check DB first if available
+        db = cls._require_db_for_write("create_team")
+        if db:
+            try:
+                res = db.table("teams").select("*").eq("organization_id", organization_id).ilike("name", name).execute()
+                rows = _rows(res.data)
+                if rows:
+                    t = rows[0]
+                    return Team(
+                        id=t["id"],
+                        organization_id=organization_id,
+                        name=t["name"],
+                        description=t.get("description"),
+                        created_at=datetime.fromisoformat(t["created_at"]) if isinstance(t.get("created_at"), str) else t.get("created_at") or datetime.now(UTC),
+                        updated_at=datetime.fromisoformat(t["updated_at"]) if isinstance(t.get("updated_at"), str) else t.get("updated_at") or datetime.now(UTC),
+                        member_count=0,
+                    )
+            except Exception as e:
+                cls._handle_db_write_exception("create_team:check_existing", e)
+
+        # Check in memory
         org_teams = cls._mem_teams.setdefault(organization_id, [])
         for t in org_teams:
             if t["name"].lower() == name.lower():
@@ -109,7 +161,6 @@ class IdentityService:
         }
         org_teams.append(team_record)
 
-        db = _safe_get_db()
         if db:
             try:
                 record = {
@@ -119,8 +170,8 @@ class IdentityService:
                     "description": description,
                 }
                 db.table("teams").insert(record).execute()
-            except Exception:
-                pass
+            except Exception as e:
+                cls._handle_db_write_exception("create_team:insert", e)
 
         return Team(**team_record)
 
@@ -165,19 +216,21 @@ class IdentityService:
                         updated_at=datetime.fromisoformat(updated_val) if isinstance(updated_val, str) else updated_val or datetime.now(UTC),
                         member_count=m_count,
                     )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.error(f"Failed to query teams from DB: {e}", exc_info=True)
+                if get_settings().APP_ENV == "production":
+                    raise DatabaseError(f"Database query failed for teams: {e}") from e
 
         return list(teams_map.values())
 
     @classmethod
     def add_user_to_team(cls, organization_id: str, team_id: str, user_id: str) -> None:
-        db = _safe_get_db()
+        db = cls._require_db_for_write("add_user_to_team")
         if db:
             try:
                 db.table("team_members").upsert({"team_id": team_id, "user_id": user_id}).execute()
-            except Exception:
-                pass
+            except Exception as e:
+                cls._handle_db_write_exception("add_user_to_team", e)
 
         memberships = cls._mem_team_members.setdefault(organization_id, [])
         if not any(m["team_id"] == team_id and m["user_id"] == user_id for m in memberships):
@@ -197,8 +250,10 @@ class IdentityService:
                 if team_ids:
                     t_res = db.table("teams").select("*").eq("organization_id", organization_id).in_("id", team_ids).execute()
                     return _rows(t_res.data)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.error(f"Failed to query user teams from DB: {e}", exc_info=True)
+                if get_settings().APP_ENV == "production":
+                    raise DatabaseError(f"Database query failed for user teams: {e}") from e
 
         memberships = cls._mem_team_members.get(organization_id, [])
         user_team_ids = {m["team_id"] for m in memberships if m.get("user_id") == user_id}
@@ -219,55 +274,77 @@ class IdentityService:
         role: UserRole = UserRole.DEVELOPER,
         allowed_repos: list[str] | None = None,
     ) -> Invitation:
-        db = _safe_get_db()
-        token = f"kairo_inv_{secrets.token_urlsafe(24)}"
+        # P2.1: Generate raw URL-safe token, store ONLY SHA-256 digest in DB
+        raw_token = f"kairo_inv_{secrets.token_urlsafe(24)}"
+        token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
         inv_id = f"inv_{secrets.token_hex(4)}"
         expires_at = datetime.now(UTC) + timedelta(days=7)
         now = datetime.now(UTC)
 
-        record = {
+        role_str = role.value if hasattr(role, "value") else str(role)
+        repos = allowed_repos or [f"{organization_id}/primary-repo"]
+
+        db = cls._require_db_for_write("create_invitation")
+        if db:
+            try:
+                existing_inv = db.table("invitations").select("id").eq("organization_id", organization_id).eq("email", email.lower().strip()).eq("status", "PENDING").execute()
+                inv_rows = _rows(existing_inv.data)
+                if inv_rows:
+                    inv_id = str(inv_rows[0]["id"])
+                    db.table("invitations").update({
+                        "team_id": team_id,
+                        "name": name,
+                        "role": role_str,
+                        "allowed_repos": repos,
+                        "token_hash": token_hash,
+                        "expires_at": expires_at.isoformat(),
+                    }).eq("id", inv_id).execute()
+                else:
+                    db.table("invitations").insert({
+                        "id": inv_id,
+                        "organization_id": organization_id,
+                        "team_id": team_id,
+                        "email": email.lower().strip(),
+                        "name": name,
+                        "role": role_str,
+                        "allowed_repos": repos,
+                        "token_hash": token_hash,
+                        "status": "PENDING",
+                        "expires_at": expires_at.isoformat(),
+                    }).execute()
+            except Exception as e:
+                cls._handle_db_write_exception("create_invitation", e)
+
+        # In-memory record stores token_hash, NOT raw token
+        mem_record = {
             "id": inv_id,
             "organization_id": organization_id,
             "email": email.lower().strip(),
             "name": name,
             "team_id": team_id,
-            "role": role.value if hasattr(role, "value") else str(role),
-            "allowed_repos": allowed_repos or [f"{organization_id}/primary-repo"],
-            "token": token,
-            "token_hash": token,
+            "role": role_str,
+            "allowed_repos": repos,
+            "token_hash": token_hash,
             "status": InvitationStatus.PENDING.value,
             "expires_at": expires_at.isoformat(),
             "created_at": now.isoformat(),
         }
+        org_invs = cls._mem_invitations.setdefault(organization_id, [])
+        # Replace existing pending invitation for same email if present
+        cls._mem_invitations[organization_id] = [
+            i for i in org_invs if not (i.get("email") == email.lower().strip() and i.get("status") == InvitationStatus.PENDING.value)
+        ] + [mem_record]
 
-        if db:
-            try:
-                db.table("invitations").insert({
-                    "id": inv_id,
-                    "organization_id": organization_id,
-                    "team_id": team_id,
-                    "email": email.lower().strip(),
-                    "name": name,
-                    "role": record["role"],
-                    "allowed_repos": record["allowed_repos"],
-                    "token_hash": token,
-                    "status": "PENDING",
-                    "expires_at": record["expires_at"],
-                }).execute()
-            except Exception:
-                pass
-
-        cls._mem_invitations.setdefault(organization_id, []).append(record)
-
+        # Return Invitation with raw token ONLY upon creation so inviter can share link
         return Invitation(
-            id=record["id"],
+            id=inv_id,
             organization_id=organization_id,
-            email=record["email"],
-            name=record["name"],
-            team_id=record["team_id"],
-            role=UserRole(record["role"]),
-            allowed_repos=record["allowed_repos"],
-            token=token,
+            email=mem_record["email"],
+            name=mem_record["name"],
+            team_id=mem_record["team_id"],
+            role=UserRole(role_str),
+            allowed_repos=mem_record["allowed_repos"],
+            token=raw_token,
             status=InvitationStatus.PENDING,
             expires_at=expires_at,
             created_at=now,
@@ -290,15 +367,17 @@ class IdentityService:
                             team_id=r.get("team_id"),
                             role=UserRole(r.get("role", "DEVELOPER")),
                             allowed_repos=r.get("allowed_repos", []),
-                            token=r.get("token_hash", r.get("token", "")),
+                            token=r.get("token_hash", ""),  # Return stored token_hash (raw token is never persisted)
                             status=InvitationStatus(r.get("status", "PENDING")),
                             expires_at=datetime.fromisoformat(r["expires_at"]) if isinstance(r["expires_at"], str) else r["expires_at"],
                             created_at=datetime.fromisoformat(r["created_at"]) if isinstance(r["created_at"], str) else r["created_at"],
                         )
                         for r in rows
                     ]
-            except Exception:
-                pass
+            except Exception as e:
+                logger.error(f"Failed to list invitations from DB: {e}", exc_info=True)
+                if get_settings().APP_ENV == "production":
+                    raise DatabaseError(f"Database query failed for invitations: {e}") from e
 
         raw = cls._mem_invitations.get(organization_id, [])
         return [
@@ -310,7 +389,7 @@ class IdentityService:
                 team_id=r.get("team_id"),
                 role=UserRole(r.get("role", "DEVELOPER")),
                 allowed_repos=r.get("allowed_repos", []),
-                token=r["token"],
+                token=r.get("token_hash", ""),
                 status=InvitationStatus(r.get("status", "PENDING")),
                 expires_at=datetime.fromisoformat(r["expires_at"]) if isinstance(r["expires_at"], str) else r["expires_at"],
                 created_at=datetime.fromisoformat(r["created_at"]) if isinstance(r["created_at"], str) else r["created_at"],
@@ -320,21 +399,22 @@ class IdentityService:
 
     @classmethod
     def accept_invitation(cls, token: str, name: str, password: str) -> dict[str, Any]:
-        db = _safe_get_db()
+        incoming_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+        db = cls._require_db_for_write("accept_invitation")
         matched_inv: dict[str, Any] | None = None
         target_org: str | None = None
 
         if db:
             try:
-                # Check if token exists in DB regardless of status
-                all_res = db.table("invitations").select("*").eq("token_hash", token).execute()
+                # Query DB by token_hash
+                all_res = db.table("invitations").select("*").eq("token_hash", incoming_hash).execute()
                 all_rows = _rows(all_res.data)
                 if all_rows:
                     if all_rows[0].get("status") != "PENDING":
                         # Mark memory store as accepted as well to maintain consistency
                         for invs in cls._mem_invitations.values():
                             for inv in invs:
-                                if inv.get("token") == token:
+                                if hmac.compare_digest(inv.get("token_hash", ""), incoming_hash):
                                     inv["status"] = InvitationStatus.ACCEPTED.value
                         raise ValueError("Invitation has already been accepted or has been revoked.")
                     matched_inv = all_rows[0]
@@ -344,17 +424,17 @@ class IdentityService:
                     # Also mark accepted in memory
                     for invs in cls._mem_invitations.values():
                         for inv in invs:
-                            if inv.get("token") == token:
+                            if hmac.compare_digest(inv.get("token_hash", ""), incoming_hash):
                                 inv["status"] = InvitationStatus.ACCEPTED.value
             except ValueError:
                 raise
-            except Exception:
-                pass
+            except Exception as e:
+                cls._handle_db_write_exception("accept_invitation:lookup", e)
 
         if not matched_inv:
             for org_id, invs in cls._mem_invitations.items():
                 for inv in invs:
-                    if inv["token"] == token:
+                    if hmac.compare_digest(inv.get("token_hash", ""), incoming_hash):
                         if inv["status"] != InvitationStatus.PENDING.value:
                             raise ValueError("Invitation has already been accepted or has been revoked.")
                         matched_inv = inv
@@ -366,6 +446,12 @@ class IdentityService:
 
         if not matched_inv or not target_org:
             raise ValueError("Invalid or expired invitation token.")
+
+        expires_val = matched_inv.get("expires_at")
+        if expires_val:
+            expires_dt = datetime.fromisoformat(expires_val) if isinstance(expires_val, str) else expires_val
+            if datetime.now(UTC) > expires_dt:
+                raise ValueError("Invitation has expired.")
 
         user_id = f"usr_{secrets.token_hex(4)}"
         email = str(matched_inv["email"]).lower().strip()
@@ -387,18 +473,29 @@ class IdentityService:
         # Persist to PostgreSQL users table
         if db:
             try:
-                db.table("users").upsert({
-                    "id": user_id,
-                    "organization_id": target_org,
-                    "email": email,
-                    "full_name": new_user["name"],
-                    "password_hash": pwd_hash,
-                    "is_org_admin": new_user["is_org_admin"],
-                }).execute()
-            except Exception:
-                pass
+                existing_u = db.table("users").select("id").eq("organization_id", target_org).eq("email", email).execute()
+                u_rows = _rows(existing_u.data)
+                if u_rows:
+                    user_id = str(u_rows[0]["id"])
+                    new_user["user_id"] = user_id
+                    db.table("users").update({
+                        "full_name": new_user["name"],
+                        "password_hash": pwd_hash,
+                        "is_org_admin": new_user["is_org_admin"],
+                    }).eq("id", user_id).execute()
+                else:
+                    db.table("users").insert({
+                        "id": user_id,
+                        "organization_id": target_org,
+                        "email": email,
+                        "full_name": new_user["name"],
+                        "password_hash": pwd_hash,
+                        "is_org_admin": new_user["is_org_admin"],
+                    }).execute()
+            except Exception as e:
+                cls._handle_db_write_exception("accept_invitation:upsert_user", e)
 
-        # In-memory registry for seamless fallback
+        # In-memory registry for fallback
         cls._mem_users[email] = new_user
 
         if matched_inv.get("team_id"):
@@ -412,7 +509,7 @@ class IdentityService:
 
     @classmethod
     def enroll_device(cls, user_id: str, organization_id: str, device_name: str, platform: str = "windows", app_version: str = "2.0.0") -> Device:
-        db = _safe_get_db()
+        db = cls._require_db_for_write("enroll_device")
         device_id = f"dev_{secrets.token_hex(4)}"
         now = datetime.now(UTC)
 
@@ -444,8 +541,8 @@ class IdentityService:
                     "status": "ACTIVE",
                     "last_seen_at": now.isoformat(),
                 }).execute()
-            except Exception:
-                pass
+            except Exception as e:
+                cls._handle_db_write_exception("enroll_device", e)
 
         org_devices = cls._mem_devices.setdefault(organization_id, [])
         for d in org_devices:
@@ -514,8 +611,10 @@ class IdentityService:
                         )
                         for d in rows
                     ]
-            except Exception:
-                pass
+            except Exception as e:
+                logger.error(f"Failed to list devices from DB: {e}", exc_info=True)
+                if get_settings().APP_ENV == "production":
+                    raise DatabaseError(f"Database query failed for devices: {e}") from e
 
         raw = cls._mem_devices.get(organization_id, [])
         if user_id:
@@ -538,15 +637,15 @@ class IdentityService:
 
     @classmethod
     def revoke_device(cls, organization_id: str, device_id: str) -> bool:
-        db = _safe_get_db()
+        db = cls._require_db_for_write("revoke_device")
         found = False
         if db:
             try:
                 res = db.table("devices").update({"status": "REVOKED"}).eq("organization_id", organization_id).eq("id", device_id).execute()
                 if _rows(res.data):
                     found = True
-            except Exception:
-                pass
+            except Exception as e:
+                cls._handle_db_write_exception("revoke_device", e)
 
         raw = cls._mem_devices.get(organization_id, [])
         for d in raw:
@@ -565,8 +664,8 @@ class IdentityService:
                 rows = _rows(res.data)
                 if rows:
                     return str(rows[0].get("status", "ACTIVE")).upper() == "ACTIVE"
-            except Exception:
-                pass
+            except Exception as e:
+                logger.error(f"Failed to check device active status in DB: {e}", exc_info=True)
 
         raw = cls._mem_devices.get(organization_id, [])
         for d in raw:
@@ -588,7 +687,7 @@ class IdentityService:
         external_username: str,
         external_email: str | None = None,
     ) -> ExternalIdentity:
-        db = _safe_get_db()
+        db = cls._require_db_for_write("link_external_identity")
         provider_val = provider.value if hasattr(provider, "value") else str(provider)
         ident_id = f"ext_{secrets.token_hex(4)}"
 
@@ -604,9 +703,23 @@ class IdentityService:
                     "external_email": external_email,
                     "verification_status": "VERIFIED",
                 }
-                res = db.table("external_identities").upsert(record).execute()
-                rows = _rows(res.data)
-                row = rows[0] if rows else record
+                existing_ext = db.table("external_identities").select("id").eq("organization_id", organization_id).eq("provider", provider_val).eq("external_user_id", external_user_id).execute()
+                ext_rows = _rows(existing_ext.data)
+                if ext_rows:
+                    ident_id = str(ext_rows[0]["id"])
+                    record["id"] = ident_id
+                    db.table("external_identities").update({
+                        "user_id": user_id,
+                        "external_username": external_username,
+                        "external_email": external_email,
+                        "verification_status": "VERIFIED",
+                    }).eq("id", ident_id).execute()
+                    row = record
+                else:
+                    res = db.table("external_identities").insert(record).execute()
+                    rows = _rows(res.data)
+                    row = rows[0] if rows else record
+
                 return ExternalIdentity(
                     id=str(row["id"]),
                     user_id=user_id,
@@ -617,8 +730,8 @@ class IdentityService:
                     external_email=external_email,
                     verification_status="VERIFIED",
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                cls._handle_db_write_exception("link_external_identity", e)
 
         org_links = cls._mem_external_identities.setdefault(organization_id, [])
         for link in org_links:
@@ -686,8 +799,10 @@ class IdentityService:
                         )
                         for r in rows
                     ]
-            except Exception:
-                pass
+            except Exception as e:
+                logger.error(f"Failed to list external identities from DB: {e}", exc_info=True)
+                if get_settings().APP_ENV == "production":
+                    raise DatabaseError(f"Database query failed for external identities: {e}") from e
 
         raw = cls._mem_external_identities.get(organization_id, [])
         if user_id:
@@ -736,8 +851,8 @@ class IdentityService:
                     rows = _rows(res.data)
                     if rows:
                         return str(rows[0]["user_id"])
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Error querying external_identities in DB: {e}")
 
         # In-memory external identities check
         org_links = cls._mem_external_identities.get(organization_id, [])
@@ -767,8 +882,8 @@ class IdentityService:
                                 external_email=email,
                             )
                         return matched_id
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning(f"Error matching email in DB: {e}")
 
             for u_email, u_data in cls._mem_users.items():
                 if u_email.lower() == clean_email and u_data.get("organization_id") == organization_id:
@@ -806,6 +921,15 @@ class IdentityService:
                 rows = _rows(res.data)
                 if rows:
                     u = rows[0]
+                    user_repos: list[str] = []
+                    try:
+                        perms_res = db.table("user_repo_permissions").select("repo_id").eq("user_id", u["id"]).execute()
+                        user_repos = [str(r["repo_id"]) for r in _rows(perms_res.data) if r.get("repo_id")]
+                    except Exception as e:
+                        logger.warning(f"Failed to fetch user_repo_permissions: {e}")
+                    if not user_repos:
+                        user_repos = [f"{organization_id}/primary-repo"]
+
                     user_info = {
                         "user_id": str(u["id"]),
                         "name": str(u.get("full_name") or u["id"]),
@@ -814,10 +938,12 @@ class IdentityService:
                         "company_name": organization_id.capitalize(),
                         "role": "ADMIN" if u.get("is_org_admin") else "DEVELOPER",
                         "status": "ACTIVE",
-                        "allowed_repos": [f"{organization_id}/billing-service", f"{organization_id}/auth-service"],
+                        "allowed_repos": user_repos,
                     }
-            except Exception:
-                pass
+            except Exception as e:
+                logger.error(f"Failed to query user from DB in get_user_identity_context: {e}", exc_info=True)
+                if get_settings().APP_ENV == "production":
+                    raise DatabaseError(f"Database query failed for user {user_id}: {e}") from e
 
         if not user_info:
             for u in cls._mem_users.values():
