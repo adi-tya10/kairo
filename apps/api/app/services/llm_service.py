@@ -2,10 +2,10 @@ import re
 from typing import Any
 
 import httpx
-from packages.schemas.decision import ExtractedDecision
 
 from apps.api.app.core.config import get_settings
 from apps.api.app.core.logging import get_logger
+from packages.schemas.decision import ExtractedDecision
 
 logger = get_logger("kairo.services.llm")
 

@@ -6,6 +6,10 @@ import uuid
 
 import pytest
 from fastapi.testclient import TestClient
+
+from apps.api.app.core.config import get_settings
+from apps.api.app.core.security import verify_slack_signature
+from apps.api.app.main import app
 from workers.tasks.backfill_task import (
     _backfill_github_prs,
     _backfill_jira_issues,
@@ -19,10 +23,6 @@ from workers.tasks.slack_task import (
     evaluate_slack_thread,
     process_slack_event,
 )
-
-from apps.api.app.core.config import get_settings
-from apps.api.app.core.security import verify_slack_signature
-from apps.api.app.main import app
 
 client = TestClient(app)
 
@@ -324,3 +324,66 @@ def test_cloud_backfill_api_endpoints() -> None:
     status_data = poll_res.json()
     assert status_data["job_id"] == job_id
     assert status_data["organization_id"] == org_id
+
+
+def test_slack_webhook_edge_cases_and_dedupe() -> None:
+    from unittest.mock import MagicMock
+
+    from apps.api.app.api.v1.webhooks.slack import _is_event_duplicate
+
+    assert _is_event_duplicate(None) is False
+
+    mock_bad_redis = MagicMock()
+    mock_bad_redis.set.side_effect = ConnectionError("Redis unavailable")
+    # First time: fallback to memory returns False and adds
+    ev_id = f"ev_bad_{uuid.uuid4().hex[:6]}"
+    assert _is_event_duplicate(ev_id, redis_client=mock_bad_redis) is False
+    # Second time: memory dedupe catches it and returns True
+    assert _is_event_duplicate(ev_id, redis_client=mock_bad_redis) is True
+
+
+def test_slack_webhook_malformed_json() -> None:
+    res = client.post(
+        "/api/v1/webhooks/slack",
+        data="this-is-not-valid-json",
+        headers={"Content-Type": "application/json"},
+    )
+    assert res.status_code == 400
+    assert "Malformed JSON" in res.json()["detail"]
+
+
+def test_slack_webhook_disabled_feature_flag(monkeypatch: pytest.MonkeyPatch) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "ENABLE_SLACK_INGESTION", False)
+
+    body = json.dumps({
+        "token": "verification_token",
+        "team_id": "T12345",
+        "event_id": f"Ev_{uuid.uuid4().hex[:8]}",
+        "event_time": int(time.time()),
+        "type": "event_callback",
+        "event": {
+            "type": "message",
+            "channel": "C12345",
+            "text": "Hello world",
+        },
+    }).encode("utf-8")
+    ts = str(int(time.time()))
+    sig = "v0=" + hmac.new(
+        settings.SLACK_SIGNING_SECRET.encode("utf-8"),
+        f"v0:{ts}:".encode("utf-8") + body,
+        hashlib.sha256,
+    ).hexdigest()
+
+    res = client.post(
+        "/api/v1/webhooks/slack",
+        content=body,
+        headers={
+            "X-Slack-Request-Timestamp": ts,
+            "X-Slack-Signature": sig,
+            "Content-Type": "application/json",
+        },
+    )
+    assert res.status_code == 200
+    assert res.json()["status"] == "disabled"
+

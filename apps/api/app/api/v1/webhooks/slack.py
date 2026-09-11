@@ -1,11 +1,12 @@
 import json
 from typing import Any
 
+from fastapi import APIRouter, Header, HTTPException, Request, Response, status
+
 from apps.api.app.core.config import get_settings
 from apps.api.app.core.database import get_redis_client
 from apps.api.app.core.logging import get_logger
 from apps.api.app.core.security import verify_slack_signature
-from fastapi import APIRouter, Header, HTTPException, Request, Response, status
 from workers.celery_app import celery_app
 
 logger = get_logger("kairo.api.webhooks.slack")
@@ -15,7 +16,7 @@ router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
 _ephemeral_event_dedupe: set[str] = set()
 
 
-def _is_event_duplicate(event_id: str, redis_client: Any = "AUTO") -> bool:
+def _is_event_duplicate(event_id: str | None, redis_client: Any = "AUTO") -> bool:
     """
     Checks if a Slack event_id has already been received within the deduplication window.
     Uses Redis with a 24-hour TTL; falls back gracefully to in-memory set.
@@ -34,6 +35,7 @@ def _is_event_duplicate(event_id: str, redis_client: Any = "AUTO") -> bool:
             key = f"kairo:dedupe:slack:{event_id}"
             # SETNX with 24-hour (86400s) expiration
             was_set = redis_client.set(key, "1", nx=True, ex=86400)
+            _ephemeral_event_dedupe.add(event_id)
             return not bool(was_set)
         except Exception as exc:
             logger.debug(f"Redis dedupe check fallback: {exc}")

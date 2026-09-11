@@ -7,10 +7,10 @@ without allowing untrusted clients to spoof their IP via X-Forwarded-For.
 from fastapi import Request
 
 
-def get_client_ip(request: Request, trusted_proxies: list[str] | None = None) -> str:
+def get_client_ip(request: Request, trusted_proxies: list[str] | str | None = None) -> str:
     """
     Extracts the true client IP address safely.
-    
+
     Security Rules:
     1. If request.client is None, return 'unknown'.
     2. If request.client.host is NOT in trusted_proxies, DO NOT trust X-Forwarded-For.
@@ -24,7 +24,13 @@ def get_client_ip(request: Request, trusted_proxies: list[str] | None = None) ->
         return "unknown"
 
     direct_ip = request.client.host.strip()
-    trusted = set(trusted_proxies or ["127.0.0.1", "::1"])
+    if isinstance(trusted_proxies, str):
+        proxy_list = [p.strip() for p in trusted_proxies.split(",") if p.strip()]
+    elif trusted_proxies is not None:
+        proxy_list = list(trusted_proxies)
+    else:
+        proxy_list = ["127.0.0.1", "::1"]
+    trusted = set(proxy_list)
 
     # If the connecting client is not a trusted reverse proxy, use direct IP
     if direct_ip not in trusted:

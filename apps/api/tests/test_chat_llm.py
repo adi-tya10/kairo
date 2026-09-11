@@ -325,13 +325,14 @@ def test_chat_pgvector_similarity_search_rpc(snapmeet_user_token: str, monkeypat
     filter_organization_id, and filter_repo_id.
     """
     from typing import Any
+
     from apps.api.app.core.config import get_settings
     from apps.api.app.core.database import get_db
 
     settings = get_settings()
     monkeypatch.setattr(settings, "APP_ENV", "development")
 
-    rpc_calls = []
+    rpc_calls: list[dict[str, Any]] = []
 
     class MockPostgrestBuilder:
         def execute(self):
@@ -357,8 +358,9 @@ def test_chat_pgvector_similarity_search_rpc(snapmeet_user_token: str, monkeypat
                 def eq(self, *args): return self
                 def limit(self, *args): return self
                 def execute(self):
-                    class Res: data = []
-                    return Res()
+                    class EmptyRes:
+                        data: list[Any] = []
+                    return EmptyRes()
             return TableBuilder()
 
     app.dependency_overrides[get_db] = lambda: MockClient()

@@ -5,6 +5,7 @@ trusted reverse proxies are properly unwound, and production database failures f
 """
 
 from unittest.mock import MagicMock, patch
+
 import pytest
 from fastapi import HTTPException
 from starlette.datastructures import Headers
@@ -67,10 +68,27 @@ def test_client_none_safely_handled() -> None:
     assert ip == "unknown"
 
 
+def test_trusted_proxies_as_string_and_all_trusted_fallback() -> None:
+    # String configuration
+    req1 = make_mock_request("127.0.0.1", x_forwarded_for="198.51.100.1")
+    ip1 = get_client_ip(req1, trusted_proxies="127.0.0.1, ::1")
+    assert ip1 == "198.51.100.1"
+
+    # All hops trusted fallback to leftmost
+    req2 = make_mock_request("127.0.0.1", x_forwarded_for="10.0.0.1, 127.0.0.1")
+    ip2 = get_client_ip(req2, trusted_proxies=["127.0.0.1", "10.0.0.1"])
+    assert ip2 == "10.0.0.1"
+
+    # Missing host
+    req3 = MagicMock()
+    req3.client.host = None
+    assert get_client_ip(req3) == "unknown"
+
+
 @pytest.mark.asyncio
 async def test_production_auth_db_failure_fails_closed() -> None:
     """Verifies that in production mode, DB failure raises 503 instead of falling back to memory."""
-    from apps.api.app.api.v1.auth import login_user, LoginRequest
+    from apps.api.app.api.v1.auth import LoginRequest, login_user
     from apps.api.app.core.config import get_settings
 
     mock_db = MagicMock()

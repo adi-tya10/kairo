@@ -5,9 +5,10 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import jwt
+from fastapi import Header, HTTPException, status
+
 from apps.api.app.core.config import get_settings
 from apps.api.app.core.errors import SignatureVerificationError
-from fastapi import Header, HTTPException, status
 from packages.schemas.permissions import UserPermissionProfile
 
 

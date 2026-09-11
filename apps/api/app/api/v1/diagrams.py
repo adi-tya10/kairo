@@ -1,9 +1,11 @@
 from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
+
 from apps.api.app.core.security import get_current_user
 from cv_pipeline.diagram_parser import DiagramComponent, DiagramParser
-from fastapi import APIRouter, Depends, HTTPException, status
 from packages.schemas.permissions import UserPermissionProfile
-from pydantic import BaseModel
 
 router = APIRouter(prefix="/diagrams", tags=["Diagrams"])
 

@@ -116,7 +116,7 @@ def _backfill_github_prs(
         for page in range(start_page, start_page + max_pages):
             current_page = page
             # Emulated resilient crawler block
-            prs_data = [
+            prs_data: list[dict[str, Any]] = [
                 {
                     "number": 100 + page,
                     "title": f"feat(billing): historical checkout flow migration [BILL-{page}]",
@@ -131,20 +131,20 @@ def _backfill_github_prs(
             ]
 
             for pr_raw in prs_data:
-                linked = extract_linked_keys(pr_raw["title"]) + extract_linked_keys(pr_raw["body"])
+                linked = extract_linked_keys(str(pr_raw["title"])) + extract_linked_keys(str(pr_raw["body"]))
                 pr_event = PullRequestEvent(
                     organization_id=organization_id,
-                    repo_name=pr_raw["repo_name"],
-                    pr_number=pr_raw["number"],
-                    title=pr_raw["title"],
-                    body=pr_raw["body"],
+                    repo_name=str(pr_raw["repo_name"]),
+                    pr_number=int(pr_raw["number"]),
+                    title=str(pr_raw["title"]),
+                    body=str(pr_raw["body"]),
                     state=PRStatus.MERGED,
-                    head_branch=pr_raw["head"]["ref"],
-                    base_branch=pr_raw["base"]["ref"],
-                    author_login=pr_raw["user"]["login"],
+                    head_branch=str(pr_raw["head"]["ref"]),
+                    base_branch=str(pr_raw["base"]["ref"]),
+                    author_login=str(pr_raw["user"]["login"]),
                     linked_issue_keys=linked,
                 )
-                _sync_neo4j_pr(pr_event, resolved_user_id=pr_raw["user"]["login"])
+                _sync_neo4j_pr(pr_event, resolved_user_id=str(pr_raw["user"]["login"]))
                 items_count += 1
 
     except Exception as exc:
@@ -163,14 +163,14 @@ def _backfill_jira_issues(
     max_results: int = 50,
 ) -> tuple[int, int]:
     """
-    Crawls Jira Cloud issues updated in the last N days with JQL updated >= -Nd.
-    Normalizes tasks into WorkItem schema and syncs to Neo4j.
+    Crawls historical Jira Cloud issues created/resolved within the past `days` window.
+    Paginates using startAt offsets and syncs tasks to Neo4j.
     """
     items_count = 0
     new_start = start_at
 
     # Emulated resilient Jira issue batch
-    issues_data = [
+    issues_data: list[dict[str, Any]] = [
         {
             "key": f"BILL-{start_at + i}",
             "fields": {
@@ -184,15 +184,15 @@ def _backfill_jira_issues(
     ]
 
     for item in issues_data:
-        key = item["key"]
-        fields = item["fields"]
+        key = str(item["key"])
+        fields = dict(item["fields"])
         work_item = WorkItem(
             id=f"wi_{key}",
             organization_id=organization_id,
             external_id=key,
             source=WorkItemSource.JIRA,
             project_key="BILL",
-            title=fields["summary"],
+            title=str(fields["summary"]),
             description=fields.get("description"),
             status=WorkItemStatus.DONE,
             assignee_id=fields["assignee"]["accountId"],
@@ -218,7 +218,7 @@ def _backfill_slack_threads(
     items_count = 0
 
     # Historical thread sample with consensus
-    sample_threads = [
+    sample_threads: list[dict[str, Any]] = [
         {
             "thread_ts": f"171000{days}00.000100",
             "messages": [
@@ -230,7 +230,7 @@ def _backfill_slack_threads(
     ]
 
     for t in sample_threads:
-        msgs = t["messages"]
+        msgs: list[dict[str, Any]] = list(t["messages"])
         if _passes_whole_thread_gate(msgs):
             from packages.schemas.decision import ExtractedDecision
             decision = ExtractedDecision(

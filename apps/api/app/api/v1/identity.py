@@ -20,8 +20,6 @@ from packages.schemas.identity import (
     Team,
     TeamCreate,
     UserIdentityContextResponse,
-    UserRole,
-    UserStatus,
 )
 from packages.schemas.permissions import UserPermissionProfile
 

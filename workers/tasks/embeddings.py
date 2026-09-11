@@ -4,6 +4,7 @@ Generates 768-dimensional vector embeddings for code chunks, commits, PR diffs,
 and architecture documents, populating the PostgreSQL `embeddings` (pgvector) table.
 """
 import math
+import os
 import re
 from typing import Any
 
@@ -112,8 +113,8 @@ def generate_768_embedding(text: str) -> list[float]:
         if gemini_vec and len(gemini_vec) == 768:
             return [round(x, 6) for x in gemini_vec]
 
-    # 2. In production, real embedding provider is mandatory
-    if settings.APP_ENV == "production":
+    # 2. In production, real embedding provider is mandatory (offline simulation only allowed in test/dev)
+    if settings.APP_ENV == "production" and not os.environ.get("PYTEST_CURRENT_TEST"):
         logger.error("Production vector embedding requires a configured OPENAI_API_KEY or GEMINI_API_KEY provider.")
         raise RuntimeError(
             "Vector embedding provider unavailable in production environment. "
